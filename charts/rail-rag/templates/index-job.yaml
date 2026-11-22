@@ -1,0 +1,39 @@
+{{- if .Values.index.enabled }}
+{{- /* A Job's pod template cannot change after creation, so the name carries a hash of what
+       should trigger a rebuild. An upgrade that changes the image or revision creates a new Job. */}}
+{{- $rev := printf "%s-%s" .Values.image.tag (.Values.index.revision | toString) | sha256sum | trunc 8 }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "rail-rag.fullname" . }}-index-{{ $rev }}
+  labels:
+    {{- include "rail-rag.labels" (dict "root" . "component" "index") | nindent 4 }}
+spec:
+  backoffLimit: {{ .Values.index.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.index.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "rail-rag.labels" (dict "root" . "component" "index") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "rail-rag.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: index
+          image: {{ include "rail-rag.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: {{ toJson .Values.index.command }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "rail-rag.fullname" . }}-api
+          resources:
+            {{- toYaml .Values.index.resources | nindent 12 }}
+          securityContext:
+            {{- include "rail-rag.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: tmp, emptyDir: {sizeLimit: 64Mi}}
+{{- end }}

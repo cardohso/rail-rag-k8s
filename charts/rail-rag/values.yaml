@@ -1,0 +1,93 @@
+# Defaults are the safe local ones: fake generator, no API key needed.
+# Overlays: values-dev.yaml (2 replicas) and values-ci.yaml (1 replica, small).
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Loaded into kind with `kind load docker-image`; never pulled from a registry.
+image:
+  repository: rail-rag-k8s
+  tag: dev
+  pullPolicy: IfNotPresent
+
+api:
+  replicas: 2
+  port: 7860
+  # Empty = the image's own command.
+  command: []
+  # PROVISIONAL: replaced by measured values in step 4. Requests drive scheduling and the HPA's
+  # CPU percentage; the memory limit is what kills a pod, so it carries headroom over the request.
+  resources:
+    requests: {cpu: 250m, memory: 768Mi}
+    limits: {memory: 1Gi}
+  # Probes, and why they differ (docs/DESIGN.md, D5):
+  #   startup   - may take minutes: model loaded, Qdrant reachable, index complete.
+  #   readiness - local state only; must NOT depend on Qdrant (shared by every pod).
+  #   liveness  - the process answers; nothing else, so a slow dependency never restarts pods.
+  probes:
+    startup: {path: /startupz, periodSeconds: 5, failureThreshold: 60, timeoutSeconds: 3}
+    readiness: {path: /readyz, periodSeconds: 5, failureThreshold: 2, timeoutSeconds: 2}
+    liveness: {path: /livez, periodSeconds: 10, failureThreshold: 3, timeoutSeconds: 3}
+  # Shutdown order: preStop sleep (pod leaves the Service) -> SIGTERM -> in-flight requests drain.
+  # The sleep plus the longest request must fit inside terminationGracePeriodSeconds.
+  preStopSleepSeconds: 5
+  terminationGracePeriodSeconds: 30
+  pdb:
+    enabled: true
+    maxUnavailable: 1
+  # Spread pods across nodes so one node going away does not take every replica.
+  topologySpread: true
+  # Set by the autoscaler step; when enabled the Deployment stops managing `replicas`.
+  autoscaling:
+    enabled: false
+  service:
+    port: 80
+
+generator:
+  # fake: deterministic, seeded delay, no network. gemini: real, needs the Secret below.
+  provider: fake
+  fake:
+    minLatencyMs: 300
+    maxLatencyMs: 900
+    seed: 0
+  # Upstream retries can run for minutes; the wrapper stops waiting after this many seconds.
+  timeoutSeconds: 20
+  # Name of a Secret you create yourself (README). Optional: the fake generator needs none.
+  existingSecret: rail-rag-secrets
+  secretKey: GEMINI_API_KEY
+
+# The upstream limiter allows 5 questions a minute per client IP, which a load test exceeds.
+rateLimit:
+  perMinute: 1000000
+  perDay: 100000000
+
+logLevel: info
+
+qdrant:
+  image: {repository: qdrant/qdrant, tag: v1.19.1}  # matches qdrant-client 1.19.1 pinned upstream
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 512Mi}
+  persistence:
+    size: 1Gi
+    storageClass: ""  # empty = the cluster default (kind: local-path, bound to one node)
+  terminationGracePeriodSeconds: 30
+
+# Builds the index into the Qdrant server once per image/corpus revision, then exits.
+index:
+  enabled: true
+  command: ["python", "-m", "rail_k8s.index_job"]
+  # Change to force a rebuild without changing the image tag.
+  revision: "1"
+  backoffLimit: 6
+  activeDeadlineSeconds: 900
+  resources:
+    requests: {cpu: 250m, memory: 768Mi}
+    limits: {memory: 1Gi}
+
+networkPolicy:
+  enabled: true
+  # Who may call the api, besides pods in this namespace.
+  apiIngressFromNamespaces: [monitoring]
+  # The real generator is an external HTTPS API; the fake one needs no egress.
+  allowPublicHttps: true

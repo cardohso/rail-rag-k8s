@@ -1,0 +1,9 @@
+apiVersion: v2
+name: rail-rag
+description: Cited Q&A over EU railway law (rail-regulation-rag) as a Kubernetes service - api, Qdrant and an index Job.
+type: application
+version: 0.1.0
+# The upstream project is pinned by commit in the image build (see docs/DESIGN.md, D2).
+appVersion: "0.1.0"
+# preStop uses the native `sleep` lifecycle action, available by default from Kubernetes 1.30.
+kubeVersion: ">=1.30.0-0"

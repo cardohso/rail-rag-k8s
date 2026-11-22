@@ -1,0 +1,15 @@
+# GitHub Actions: single small kind cluster, fake generator, no external network needed.
+api:
+  replicas: 1
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 1Gi}
+qdrant:
+  persistence:
+    size: 256Mi
+index:
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 1Gi}
+networkPolicy:
+  allowPublicHttps: false

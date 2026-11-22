@@ -1,0 +1,29 @@
+# Stable client address for the api and the index Job.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rail-rag.fullname" . }}-qdrant
+  labels:
+    {{- include "rail-rag.labels" (dict "root" . "component" "qdrant") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "rail-rag.selectorLabels" (dict "root" . "component" "qdrant") | nindent 4 }}
+  ports:
+    - {name: http, port: 6333, targetPort: http}
+    - {name: grpc, port: 6334, targetPort: grpc}
+---
+# Gives the StatefulSet's pod a stable DNS name (<pod>.<this service>).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rail-rag.fullname" . }}-qdrant-headless
+  labels:
+    {{- include "rail-rag.labels" (dict "root" . "component" "qdrant") | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "rail-rag.selectorLabels" (dict "root" . "component" "qdrant") | nindent 4 }}
+  ports:
+    - {name: http, port: 6333, targetPort: http}
+    - {name: grpc, port: 6334, targetPort: grpc}

@@ -19,11 +19,19 @@ baseline: ## Measure the memory of the empty cluster
 machine: ## Print machine and tool versions as JSON
 	scripts/machine-info.sh
 
-lint: ## shellcheck + secret scan (chart lint arrives with the chart)
-	shellcheck -x scripts/*.sh
+lint: ## shellcheck, chart validation, chart-testing, secret scan
+	shellcheck -x scripts/*.sh tests/*.sh
+	scripts/chart-validate.sh
+	ct lint --all --config ct.yaml
 	gitleaks detect --source . --no-banner --redact
+
+chart-validate: ## helm lint + kubeconform for every values overlay (no yamllint needed)
+	scripts/chart-validate.sh
+
+netpol-test: ## Prove the NetworkPolicies are enforced (needs a running release)
+	tests/netpol-test.sh
 
 secrets: ## Secret scan of the working tree and git history
 	gitleaks detect --source . --no-banner --redact
 
-.PHONY: help up down status baseline machine lint secrets
+.PHONY: help up down status baseline machine lint chart-validate netpol-test secrets

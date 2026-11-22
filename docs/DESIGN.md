@@ -41,6 +41,11 @@ workloads. **Honest trade-off:** the index is 9 MB and read-only, so baking it i
 be simpler and remove a single point of failure.
 **Cost:** kind's default storage pins the volume to one node, so draining that node leaves Qdrant
 Pending. Reported as a limitation; the drain test targets the other worker.
+**Verified (step 3):** a collection created in Qdrant survived `kubectl delete pod rail-rag-qdrant-0`
+(the pod came back on the same PVC). Qdrant runs as uid 1000 with a read-only root filesystem; only
+`/qdrant/storage`, `/qdrant/snapshots` and `/tmp` are writable. The image defaults to root and its
+data directory is root-owned, so `fsGroup: 1000` on the pod is what makes the volume writable. One
+harmless warning remains: it cannot write its `.qdrant-initialized` marker.
 
 ## D5. Three probes with different jobs
 
@@ -80,10 +85,43 @@ Upstream retries can run past 2 minutes, longer than any grace period, hence the
 
 ## D9. NetworkPolicy needs proof
 
-kind's default network plugin may not enforce policies. Step 3 includes a test where an unlabelled
-pod must fail to reach Qdrant. If it does not fail, Calico is added (~250 MB).
+**Result:** kind's default plugin (kindnet) enforces NetworkPolicy, so Calico is not needed.
+`tests/netpol-test.sh` checks 7 cases; each "must be blocked" check has a control that must succeed.
+With the policies deleted, 4 checks fail (the four blocks); with them installed, all 7 pass.
+Qdrant accepts only the api and the index Job and has no egress. The api accepts traffic from its
+own namespace and the `monitoring` namespace, and may call only Qdrant, DNS and, when the real
+generator is on, public HTTPS (private ranges excluded).
+**Limit:** policies match on labels, so any pod that carries the api's labels in this namespace is
+trusted. Restricting who may create pods is RBAC's job, not NetworkPolicy's.
 
 ## D10. Secrets
 
 The Kubernetes Secret is created by hand from the user's own `.env`; the repo only documents the
 command. No key is ever committed, and CI runs the fake generator only.
+
+## D11. The index Job is a plain Job, not a Helm hook
+
+**Chosen:** a normal Job whose name carries a hash of the image tag and `index.revision`.
+**Why not a `post-install` hook:** with `helm install --wait`, Helm waits for the api to be ready
+before it runs post-install hooks, but the api's startup probe waits for the index. That deadlocks
+until the timeout. A normal Job runs in parallel; the startup probe simply waits for it.
+**Why the hash in the name:** a Job's pod template is immutable, so an upgrade that changes the
+image must create a new Job. Unchanged values give the same name and Helm leaves it alone.
+**Cost:** old Jobs are removed by Helm on upgrade, so their logs are gone; failed Jobs keep theirs.
+
+## D12. Zero-downtime rollout settings
+
+`maxSurge: 1, maxUnavailable: 0` starts a new pod and waits for readiness before removing an old
+one. On deletion the `preStop` sleep (the native `sleep` action, Kubernetes 1.30+, so the image
+needs no shell) keeps the pod serving while endpoint removal propagates, then SIGTERM lets uvicorn
+drain. A PodDisruptionBudget (`maxUnavailable: 1`) limits voluntary evictions such as a node drain.
+Pods spread across nodes with a soft constraint (`ScheduleAnyway`), so a single node never stops
+scheduling. **Claimed only after step 7 measures it**; step 3 sets the mechanism, not the result.
+
+## D13. Provisional resources, and test scaffolding
+
+Resource requests and limits in `values.yaml` are marked PROVISIONAL and are replaced by measured
+values in step 4. `tests/stub-api/` is a throwaway server with the same probe paths, used only to
+exercise the chart before the real image exists; it is removed once step 4 lands.
+Qdrant is pulled by the nodes from Docker Hub rather than `kind load`-ed: `kind load` fails on the
+multi-arch Qdrant image under Docker Desktop's image store ("content digest not found").
