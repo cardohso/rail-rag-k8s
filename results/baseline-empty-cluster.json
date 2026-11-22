@@ -1,0 +1,25 @@
+{
+  "label": "empty-cluster",
+  "node_container_mem_mib": {
+    "rail-k8s-control-plane": 652.9,
+    "rail-k8s-worker2": 148.3,
+    "rail-k8s-worker": 127.7
+  },
+  "total_mib": 928.9,
+  "docker_vm_mem_mib": 7934,
+  "machine": {
+    "date_utc": "2026-11-22T19:24:05Z",
+    "cpu": "Apple M1 Pro",
+    "cpu_cores": 8,
+    "ram_gib": 16,
+    "os": "27.2.1",
+    "docker_vm_cpus": 8,
+    "docker_vm_mem_gib": 7.7,
+    "docker": "Docker version 29.9.2, build a82e528901",
+    "kind": "kind v0.33.0 go1.27.1 darwin/arm64",
+    "kubectl": "Client Version: v1.36.1",
+    "helm": "v4.3.2+g8346aaa",
+    "k6": "",
+    "node_image": "kindest/node:v1.36.4"
+  }
+}

@@ -1,0 +1,17 @@
+# Secrets: never commit. The Kubernetes Secret is created by hand from your own .env (see README).
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+kubeconfig*
+
+# Local state
+.DS_Store
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Raw benchmark output stays local; summarised results in results/*.md and results/*.json are committed
+results/raw/

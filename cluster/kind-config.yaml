@@ -1,0 +1,12 @@
+# 1 control plane + 2 workers: enough to show scheduling, a node drain and pod anti-affinity,
+# while staying inside Docker Desktop's ~7.7 GiB (see docs/DESIGN.md, D1).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+    labels:
+      workload: general
+  - role: worker
+    labels:
+      workload: general
