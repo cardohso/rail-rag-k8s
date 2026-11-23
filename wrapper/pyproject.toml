@@ -1,0 +1,17 @@
+[project]
+name = "rail-k8s"
+version = "0.1.0"
+description = "Kubernetes wrapper around rail-regulation-rag: probes, metrics, JSON logs, remote Qdrant, fake generator."
+requires-python = ">=3.12,<3.13"
+dependencies = ["prometheus-client==0.22.1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["rail_k8s"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
