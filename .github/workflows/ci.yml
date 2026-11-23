@@ -1,7 +1,7 @@
 name: ci
 
-# Step 2 skeleton: shell lint and secret scan. The chart lint (helm lint, kubeconform,
-# chart-testing) and the kind install/smoke/load job are added with the chart (steps 3 and 8).
+# Static checks: shell lint, chart validation, secret scan. The job that installs the chart on a
+# kind cluster and runs a smoke and load test is added in step 8.
 on:
   push:
     branches: [main]
@@ -18,7 +18,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: shellcheck
-        run: shellcheck -x scripts/*.sh
+        run: shellcheck -x scripts/*.sh tests/*.sh
+
+  chart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # chart-testing compares against the target branch
+      - uses: azure/setup-helm@v4
+      - uses: helm/chart-testing-action@v2  # installs ct, yamllint and yamale
+      - name: Install kubeconform
+        run: |
+          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin kubeconform
+      - name: helm lint and kubeconform, every values overlay
+        run: scripts/chart-validate.sh
+      - name: chart-testing lint
+        run: ct lint --all --config ct.yaml
 
   secrets:
     runs-on: ubuntu-latest

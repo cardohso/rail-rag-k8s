@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "rail-rag.fullname" . }}-qdrant
+  labels:
+    {{- include "rail-rag.labels" (dict "root" . "component" "qdrant") | nindent 4 }}
+spec:
+  # One replica: Qdrant clustering is out of scope, so this is a single point of failure by design
+  # (docs/DESIGN.md, D4). The data survives pod restarts through the PVC.
+  replicas: 1
+  serviceName: {{ include "rail-rag.fullname" . }}-qdrant-headless
+  selector:
+    matchLabels:
+      {{- include "rail-rag.selectorLabels" (dict "root" . "component" "qdrant") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rail-rag.labels" (dict "root" . "component" "qdrant") | nindent 8 }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.qdrant.terminationGracePeriodSeconds }}
+      automountServiceAccountToken: false
+      securityContext:
+        # fsGroup makes the volume writable by uid 1000; the image itself defaults to root.
+        {{- include "rail-rag.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: qdrant
+          image: {{ .Values.qdrant.image.repository }}:{{ .Values.qdrant.image.tag }}
+          ports:
+            - {name: http, containerPort: 6333}
+            - {name: grpc, containerPort: 6334}
+          startupProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: {path: /livez, port: http}
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.qdrant.resources | nindent 12 }}
+          securityContext:
+            {{- include "rail-rag.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - {name: data, mountPath: /qdrant/storage}
+            - {name: snapshots, mountPath: /qdrant/snapshots}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: snapshots, emptyDir: {sizeLimit: 256Mi}}
+        - {name: tmp, emptyDir: {sizeLimit: 64Mi}}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.qdrant.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.qdrant.persistence.size }}

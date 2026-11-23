@@ -1,0 +1,7 @@
+# chart-testing: used by `make lint` and CI.
+chart-dirs: [charts]
+target-branch: main
+validate-maintainers: false
+check-version-increment: false  # the chart is versioned with the repo, not per change
+lint-conf: lintconf.yaml
+helm-extra-args: --timeout 300s

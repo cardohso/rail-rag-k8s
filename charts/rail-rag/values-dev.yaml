@@ -1,0 +1,3 @@
+# Local development on the 3-node kind cluster.
+api:
+  replicas: 2
