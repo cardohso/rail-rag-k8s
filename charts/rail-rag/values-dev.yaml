@@ -1,3 +1,7 @@
 # Local development on the 3-node kind cluster.
 api:
   replicas: 2
+observability:
+  serviceMonitor: {enabled: true}
+  alerts: {enabled: true}
+  dashboard: {enabled: true}

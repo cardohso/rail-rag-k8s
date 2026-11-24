@@ -6,6 +6,7 @@ metadata:
     {{- include "rail-rag.labels" (dict "root" . "component" "api") | nindent 4 }}
 data:
   QDRANT_URL: "http://{{ include "rail-rag.fullname" . }}-qdrant:6333"
+  QDRANT_TIMEOUT_SECONDS: {{ .Values.qdrant.clientTimeoutSeconds | int64 | quote }}
   GENERATOR_PROVIDER: {{ .Values.generator.provider | quote }}
   GENERATOR_TIMEOUT_SECONDS: {{ .Values.generator.timeoutSeconds | quote }}
   FAKE_LATENCY_MIN_MS: {{ .Values.generator.fake.minLatencyMs | int64 | quote }}

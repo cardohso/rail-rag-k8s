@@ -31,7 +31,7 @@ def build_pipeline(w: WrapperSettings | None = None, store=None, embedder=None) 
     s = get_settings()
     cfg = GraphConfig(k=s.top_k, min_score=s.min_score, hybrid=s.search_mode == "hybrid")
     embedder = embedder or LocalEmbedder(s.embedding_model)
-    store = TimedStore(store or RemoteQdrantStore(w.qdrant_url))
+    store = TimedStore(store or RemoteQdrantStore(w.qdrant_url, timeout=w.qdrant_timeout_seconds))
     if s.corpus_pin:
         store = PinnedStore(store, load_pins())
     return Pipeline(

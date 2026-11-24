@@ -1,0 +1,73 @@
+# Small-footprint kube-prometheus-stack for a 3-node kind cluster on one laptop.
+# Pinned chart: 93.10.0 (see scripts/install-monitoring.sh). Decisions: docs/DESIGN.md D16.
+fullnameOverride: kps
+
+prometheus:
+  prometheusSpec:
+    retention: 12h
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    # Pick up ServiceMonitors and PrometheusRules from any namespace, whatever their Helm labels.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests: {cpu: 100m, memory: 400Mi}
+      limits: {memory: 900Mi}
+    storageSpec: {}  # emptyDir: metrics are disposable, and results are saved by scripts
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {memory: 96Mi}
+
+grafana:
+  adminPassword: admin   # local kind only; reached through kubectl port-forward, never exposed
+  defaultDashboardsEnabled: false   # only the project's dashboard, plus the cluster ones below
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 384Mi}
+  # Grafana 13 needs several minutes to start when the Docker VM is busy. The chart's default
+  # liveness probe (60 s delay, about 160 s in total) kept killing it mid-start, so it never came
+  # up; the first install failed that way.
+  livenessProbe:
+    initialDelaySeconds: 300
+    timeoutSeconds: 30
+    periodSeconds: 10
+    failureThreshold: 10
+
+kube-state-metrics:
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {memory: 96Mi}
+
+prometheus-node-exporter:
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {memory: 64Mi}
+
+prometheusOperator:
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 160Mi}
+
+# kind runs these control-plane components bound to localhost, so scraping them only produces
+# permanently failing targets and alerts.
+kubeEtcd: {enabled: false}
+kubeScheduler: {enabled: false}
+kubeControllerManager: {enabled: false}
+kubeProxy: {enabled: false}
+# Stock alerts about those components, and the ones that need a real cluster, would be noise.
+defaultRules:
+  rules:
+    etcd: false
+    kubeSchedulerAlerting: false
+    kubeControllerManager: false
+    kubeProxy: false
