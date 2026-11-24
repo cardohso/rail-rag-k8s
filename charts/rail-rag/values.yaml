@@ -15,11 +15,13 @@ api:
   port: 7860
   # Empty = the image's own command.
   command: []
-  # PROVISIONAL: replaced by measured values in step 4. Requests drive scheduling and the HPA's
-  # CPU percentage; the memory limit is what kills a pod, so it carries headroom over the request.
+  # Measured (docs/DESIGN.md D15): idle 233 MiB, peak 247 MiB after 148 requests, about 0.24 CPU-s
+  # per request. Requests drive scheduling and the HPA's CPU percentage. The memory limit is what
+  # kills a pod, so it is about twice the measured peak. No CPU limit: throttling would add
+  # latency that the load tests should not attribute to the application.
   resources:
-    requests: {cpu: 250m, memory: 768Mi}
-    limits: {memory: 1Gi}
+    requests: {cpu: 250m, memory: 320Mi}
+    limits: {memory: 512Mi}
   # Probes, and why they differ (docs/DESIGN.md, D5):
   #   startup   - may take minutes: model loaded, Qdrant reachable, index complete.
   #   readiness - local state only; must NOT depend on Qdrant (shared by every pod).
@@ -82,6 +84,7 @@ index:
   backoffLimit: 6
   activeDeadlineSeconds: 900
   resources:
+    # Peak 667 MiB measured in the cluster at embedding batch 8 (D15).
     requests: {cpu: 250m, memory: 768Mi}
     limits: {memory: 1Gi}
 

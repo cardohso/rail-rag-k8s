@@ -27,7 +27,11 @@ would run under emulation and make every CPU number meaningless. The upstream re
 
 ## D3. Fake generator with a fixed, seeded delay
 
-**Chosen:** a deterministic generator, selected by a config flag, that sleeps a seeded 300-900 ms.
+**Chosen:** a deterministic generator, selected by a config flag, that sleeps a seeded 300-900 ms
+**per call**. One `/ask` makes three generator calls (rewrite, grade, generate), so a request that
+reaches the generator costs 0.9-2.7 s of waiting, roughly what three calls to a small hosted model
+cost. The delay is a hash of (seed, prompt, text): the same question always costs the same, on any
+pod, so a run can be repeated. A question the retrieval floor refuses makes one generator call (the rewrite) instead of three.
 **Why:** load tests must not spend free-tier quota. Without a delay, a pod is CPU-bound and the
 "requests in flight" metric is meaningless; with one it behaves like production, mostly waiting.
 **Cost:** latency and capacity under load are for the fake, not for Gemini. The README says so.
@@ -50,7 +54,9 @@ harmless warning remains: it cannot write its `.qdrant-initialized` marker.
 ## D5. Three probes with different jobs
 
 - **startup:** model loaded, Qdrant reachable, expected passage count present. Slow allowed.
-- **readiness:** local state only (startup done, not shutting down). Must not check Qdrant.
+- **readiness:** local state only (startup finished). Must not check Qdrant. Not-shutting-down is
+  not checked: uvicorn closes its listener on SIGTERM, and the `preStop` sleep (D12) already covers
+  the time the endpoint needs to leave the Service.
 - **liveness:** the process answers `/livez`. Nothing else.
 
 **Why readiness skips Qdrant:** Qdrant is shared by every api pod. If readiness checked it, one
@@ -122,6 +128,55 @@ scheduling. **Claimed only after step 7 measures it**; step 3 sets the mechanism
 
 Resource requests and limits in `values.yaml` are marked PROVISIONAL and are replaced by measured
 values in step 4. `tests/stub-api/` is a throwaway server with the same probe paths, used only to
-exercise the chart before the real image exists; it is removed once step 4 lands.
+exercise the chart before the real image existed; removed in step 4.
 Qdrant is pulled by the nodes from Docker Hub rather than `kind load`-ed: `kind load` fails on the
 multi-arch Qdrant image under Docker Desktop's image store ("content digest not found").
+
+## D14. The wrapper (step 4)
+
+`wrapper/rail_k8s` is installed next to upstream, unmodified, at commit c7c371f (`image/Dockerfile`
+downloads that commit's archive). It adds only what Kubernetes needs:
+- `RemoteQdrantStore`: upstream's `QdrantStore` with a server client instead of a local folder.
+- `build_pipeline`: mirrors upstream's `Pipeline.from_settings`, which hard-wires the local store.
+- `Service`: loads the model in a background thread so the port is open and `/startupz` can report
+  `loading-model` or `waiting-for-index`; `/ask` answers 503 until ready.
+- `/livez`, `/readyz`, `/startupz`, `/metrics`; request ID header; one JSON log line per request.
+- `DeadlineLLM`: a real-provider call that misses `GENERATOR_TIMEOUT_SECONDS` becomes a 503
+  instead of waiting through upstream's retries (up to minutes). Python cannot kill the thread, so
+  the abandoned call finishes in the background; the pool is capped at 32.
+`tests/test_contract.py` fails if upstream renames anything the wrapper relies on. Probes and
+`/metrics` are excluded from the in-flight gauge and request counters, so scraping never moves the
+autoscaler.
+
+## D15. Indexing memory: the first limit was wrong
+
+The first install used a provisional 1 Gi limit for the index Job, and it was OOM-killed on all
+4 attempts. Embedding the 1,589 passages in this container (`LocalEmbedder`, one process, idle
+Docker VM, `ru_maxrss`):
+
+| embedding batch | peak memory | time |
+|---|---|---|
+| 8 | 565 MiB | 243 s |
+| 32 (upstream default) | 1,582 MiB | 1,054 s |
+
+The smaller batch is better on both counts, so the index Job uses 8. The api is unaffected: it
+embeds one query at a time. My first measurement printed "2" because I divided `ru_maxrss` (KiB on
+Linux) by 1024 twice; I only noticed because the Job was being killed at 1 Gi.
+**Also found at the same time:** Helm renders `1000000` as `1e+06` inside `quote`, which the real
+api rejected as an integer. The stub never read that variable. Numeric values now pass through
+`int64`.
+
+**Measured api resources (step 4).** One api pod, fake generator, 4 concurrent clients through
+`kubectl port-forward`, cgroup counters read inside the pod. Machine: Apple M1 Pro, Docker VM
+8 CPUs and 7.7 GiB. Single run, a first estimate: the step-7 load tests repeat it 3 times.
+
+| | value |
+|---|---|
+| memory after start (model loaded, index ready) | 233 MiB |
+| memory peak after 148 requests | 247 MiB |
+| CPU per request | 0.24 CPU-s (35 s over 148 requests) |
+| index Job peak (embedding at batch 8) | 667 MiB |
+
+At 0.24 CPU-s per request one CPU serves about 4 requests per second, so CPU, not the generator
+wait, is what limits a pod. That matters for D7: the CPU trigger will fire before in-flight does
+at high rate. `values.yaml` now has requests 250m / 320Mi and a 512Mi memory limit for the api.

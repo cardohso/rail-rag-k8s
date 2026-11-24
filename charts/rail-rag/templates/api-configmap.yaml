@@ -8,10 +8,10 @@ data:
   QDRANT_URL: "http://{{ include "rail-rag.fullname" . }}-qdrant:6333"
   GENERATOR_PROVIDER: {{ .Values.generator.provider | quote }}
   GENERATOR_TIMEOUT_SECONDS: {{ .Values.generator.timeoutSeconds | quote }}
-  FAKE_LATENCY_MIN_MS: {{ .Values.generator.fake.minLatencyMs | quote }}
-  FAKE_LATENCY_MAX_MS: {{ .Values.generator.fake.maxLatencyMs | quote }}
-  FAKE_SEED: {{ .Values.generator.fake.seed | quote }}
-  RATE_LIMIT_PER_MINUTE: {{ .Values.rateLimit.perMinute | quote }}
-  RATE_LIMIT_PER_DAY: {{ .Values.rateLimit.perDay | quote }}
+  FAKE_LATENCY_MIN_MS: {{ .Values.generator.fake.minLatencyMs | int64 | quote }}
+  FAKE_LATENCY_MAX_MS: {{ .Values.generator.fake.maxLatencyMs | int64 | quote }}
+  FAKE_SEED: {{ .Values.generator.fake.seed | int64 | quote }}
+  RATE_LIMIT_PER_MINUTE: {{ .Values.rateLimit.perMinute | int64 | quote }}
+  RATE_LIMIT_PER_DAY: {{ .Values.rateLimit.perDay | int64 | quote }}
   LOG_LEVEL: {{ .Values.logLevel | quote }}
   LOG_FORMAT: "json"

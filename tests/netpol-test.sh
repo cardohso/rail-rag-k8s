@@ -51,8 +51,11 @@ kc -n "$OTHER_NS" run "$OUTSIDER" --image="$IMG" --restart=Never --command -- sl
 kc -n "$NS" wait --for=condition=Ready pod/"$INTRUDER" pod/"$VICTIM" --timeout=120s >/dev/null
 kc -n "$OTHER_NS" wait --for=condition=Ready pod/"$OUTSIDER" --timeout=120s >/dev/null
 VICTIM_IP="$(kc -n "$NS" get pod "$VICTIM" -o jsonpath='{.status.podIP}')"
+# A pod that is being deleted (right after a rollout) cannot exec, which would look like a block.
 API_POD="$(kc -n "$NS" get pod -l "app.kubernetes.io/instance=${REL},app.kubernetes.io/component=api" \
-  -o jsonpath='{.items[0].metadata.name}')"
+  -o custom-columns=NAME:.metadata.name,DELETING:.metadata.deletionTimestamp --no-headers \
+  | awk '$2 == "<none>" { print $1; exit }')"
+[ -n "$API_POD" ] || die "no running api pod in ${NS}"
 
 log "qdrant: only api and index may connect"
 expect allow "control: unlabelled pod reaches another unlabelled pod" "$NS" "$INTRUDER" "http://${VICTIM_IP}:8000/"
