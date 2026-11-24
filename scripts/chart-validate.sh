@@ -8,6 +8,8 @@ need helm kubeconform
 
 CHART="${REPO_ROOT}/charts/rail-rag"
 K8S_VERSION="${K8S_VERSION:-1.36.0}"
+# ServiceMonitor and PrometheusRule are custom resources: their schemas come from this catalogue.
+CRD_SCHEMAS='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
 failed=0
 
 for overlay in "" values-dev.yaml values-ci.yaml; do
@@ -20,7 +22,8 @@ for overlay in "" values-dev.yaml values-ci.yaml; do
 
   log "kubeconform, Kubernetes ${K8S_VERSION} (${label})"
   helm template rail-rag "$CHART" ${args[@]+"${args[@]}"} \
-    | kubeconform -strict -summary -kubernetes-version "$K8S_VERSION" || failed=1
+    | kubeconform -strict -summary -kubernetes-version "$K8S_VERSION" \
+        -schema-location default -schema-location "$CRD_SCHEMAS" || failed=1
 done
 
 [ "$failed" -eq 0 ] || die "chart validation failed"

@@ -1,0 +1,13 @@
+{{- if .Values.observability.dashboard.enabled }}
+# Picked up by Grafana's sidecar through the grafana_dashboard label.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rail-rag.fullname" . }}-dashboard
+  labels:
+    {{- include "rail-rag.labels" (dict "root" . "component" "api") | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  rail-rag.json: |-
+    {{- .Files.Get "dashboards/rail-rag.json" | nindent 4 }}
+{{- end }}

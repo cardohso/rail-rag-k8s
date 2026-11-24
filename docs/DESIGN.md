@@ -180,3 +180,50 @@ api rejected as an integer. The stub never read that variable. Numeric values no
 At 0.24 CPU-s per request one CPU serves about 4 requests per second, so CPU, not the generator
 wait, is what limits a pod. That matters for D7: the CPU trigger will fire before in-flight does
 at high rate. `values.yaml` now has requests 250m / 320Mi and a 512Mi memory limit for the api.
+
+## D16. Monitoring: kube-prometheus-stack, scoped to this cluster
+
+**Chosen:** kube-prometheus-stack 93.10.0 in the `monitoring` namespace
+(`observability/kube-prometheus-stack-values.yaml`, `scripts/install-monitoring.sh`). The chart
+adds a `ServiceMonitor` (scrape `/metrics`), a `PrometheusRule` with 7 alerts and a dashboard
+ConfigMap that Grafana's sidecar loads; all three are off by default and on in `values-dev.yaml`,
+because they need the stack's CRDs.
+**Why this stack:** it is what teams actually run, and the CRDs make the scrape config and alerts
+part of the release. **Trimmed for a laptop:** etcd, scheduler, controller-manager and kube-proxy
+scraping are off (kind binds them to localhost, so they would only be failing targets), 12 h
+retention, no persistent volume (metrics are disposable; results are saved by scripts), explicit
+memory limits on every component, Grafana's stock dashboards off.
+**Alerts and what they watch:** `RailApiDown`, `RailApiScrapeDown`, `RailApiHighErrorRate` (5xx
+share of `/ask` over 5 min, with a minimum-traffic guard), `RailApiHighLatency` (p95 above 4 s),
+`RailPodRestarting`, `RailQdrantDown`, `RailQdrantErrors`. Thresholds are chart values. The 4 s p95
+sits above the fake generator's ceiling of about 2.7 s, so it fires on saturation, not normal
+operation; step 7 checks that against real runs.
+**Alerts are not sent anywhere.** Alertmanager runs and shows them, but no receiver (email, chat)
+is configured: that needs credentials, and nothing in this repo should hold any.
+**Probes and `/metrics` are not counted as load** (see D14), so scraping never moves the
+in-flight metric the autoscaler reads.
+**A problem on first install:** Grafana 13 started slowly on a busy Docker VM and the chart's
+liveness probe (about 160 s in total) killed it mid-start, three times, until Helm timed out. I
+raised the probe's initial delay to 300 s and re-ran, and it started in under a minute. I changed
+that and the load went away at about the same time, so I cannot say which one fixed it.
+
+**Measured** (`scripts/measure-baseline.sh`, `docker stats` per node, Apple M1 Pro, Docker VM 8 CPUs
+and 7.7 GiB; one reading each, in [results/](../results/)):
+
+| cluster state | total node memory |
+|---|---|
+| empty | 929 MiB |
+| rail-rag running (2 api pods, Qdrant, index done) | 2,790 MiB |
+| plus kube-prometheus-stack | 4,519 MiB (57% of the VM) |
+
+The stack costs about 1.7 GiB, which leaves about 3.4 GiB for scaling the api (each pod about
+250 MiB) and for page cache. The load generator runs on the host, outside the VM.
+
+**Outage test** (`tests/alert-qdrant-test.sh`, `make alert-test`). With Qdrant scaled to 0:
+`/ask` answers 503 in 4 s, both api pods stay Ready, and `RailQdrantDown` fires after 62 s (the
+rule waits 1 minute). After Qdrant returns, `/ask` works and the alert clears. 4 s is not "instant":
+it is the rewrite call (up to 0.9 s) plus the 2 s Qdrant timeout plus overhead. The first run
+answered 503 in 9 s: a connect to a Service with no ready pods does not get refused, it hangs
+(10.7 s measured from inside a pod), so the client timeout is what bounds the wait. It was 5 s;
+it is now `qdrant.clientTimeoutSeconds: 2`. A second run of the test would give a second number;
+this is one run of each version.

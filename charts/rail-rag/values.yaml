@@ -67,6 +67,9 @@ logLevel: info
 
 qdrant:
   image: {repository: qdrant/qdrant, tag: v1.19.1}  # matches qdrant-client 1.19.1 pinned upstream
+  # How long the api waits for Qdrant before answering 503. A Service with no ready pods makes
+  # connections hang rather than fail (measured 10.7 s), so this is what makes the 503 fast.
+  clientTimeoutSeconds: 2
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {memory: 512Mi}
@@ -94,3 +97,16 @@ networkPolicy:
   apiIngressFromNamespaces: [monitoring]
   # The real generator is an external HTTPS API; the fake one needs no egress.
   allowPublicHttps: true
+
+# Needs kube-prometheus-stack (scripts/install-monitoring.sh): these create its custom resources,
+# so they stay off until its CRDs exist. values-dev.yaml turns them on.
+observability:
+  serviceMonitor:
+    enabled: false
+    interval: 15s
+  alerts:
+    enabled: false
+    p95Seconds: 4        # /ask p95 above this for 5 minutes. The fake generator tops out near 2.7 s.
+    errorRatio: 0.05     # share of /ask answered with 5xx over 5 minutes
+  dashboard:
+    enabled: false

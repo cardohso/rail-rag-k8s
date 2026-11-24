@@ -19,6 +19,9 @@ class WrapperSettings:
     fake_seed: int = 0
     log_level: str = "INFO"
     log_format: str = "json"  # "json" or "text"
+    # A Service with no ready pods does not refuse connections, it makes them hang, so this is
+    # how long /ask waits before answering 503 when Qdrant is down. Searches take milliseconds.
+    qdrant_timeout_seconds: int = 2
     index_poll_seconds: float = 2.0  # how often startup re-checks Qdrant while the index loads
 
     @classmethod
@@ -36,5 +39,6 @@ class WrapperSettings:
             fake_seed=int(e.get("FAKE_SEED", d.fake_seed)),
             log_level=e.get("LOG_LEVEL", d.log_level).upper(),
             log_format=e.get("LOG_FORMAT", d.log_format).lower(),
+            qdrant_timeout_seconds=int(e.get("QDRANT_TIMEOUT_SECONDS", d.qdrant_timeout_seconds)),
             index_poll_seconds=float(e.get("INDEX_POLL_SECONDS", d.index_poll_seconds)),
         )

@@ -1,0 +1,67 @@
+{{- if .Values.observability.alerts.enabled }}
+{{- $full := include "rail-rag.fullname" . }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $full }}
+  labels:
+    {{- include "rail-rag.labels" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  groups:
+    - name: rail-rag
+      rules:
+        - alert: RailApiDown
+          expr: sum(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}", deployment="{{ $full }}-api"}) == 0
+          for: 1m
+          labels: {severity: critical}
+          annotations:
+            summary: No api pod is available
+            description: Every request fails until a pod is Ready. See docs/RUNBOOK.md.
+        - alert: RailApiScrapeDown
+          expr: up{namespace="{{ .Release.Namespace }}", service="{{ $full }}-api"} == 0
+          for: 2m
+          labels: {severity: warning}
+          annotations:
+            summary: "Prometheus cannot scrape {{ "{{ $labels.pod }}" }}"
+            description: The pod may be down, or a NetworkPolicy blocks the monitoring namespace.
+        - alert: RailApiHighErrorRate
+          expr: |
+            sum(rate(rail_http_requests_total{route="/ask", status=~"5.."}[5m]))
+              / sum(rate(rail_http_requests_total{route="/ask"}[5m])) > {{ .Values.observability.alerts.errorRatio }}
+            and sum(rate(rail_http_requests_total{route="/ask"}[5m])) > 0.05
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "More than {{ mulf .Values.observability.alerts.errorRatio 100 }}% of /ask requests fail"
+            description: Check the document store (RailQdrantDown) and the generator.
+        - alert: RailApiHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(rail_http_request_duration_seconds_bucket{route="/ask"}[5m])))
+              > {{ .Values.observability.alerts.p95Seconds }}
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: "/ask p95 latency is above {{ .Values.observability.alerts.p95Seconds }} s"
+            description: Pods are saturated or the generator is slow. Compare in-flight per pod on the dashboard.
+        - alert: RailPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="{{ .Release.Namespace }}"}[15m]) > 2
+          labels: {severity: warning}
+          annotations:
+            summary: "{{ "{{ $labels.pod }}" }} restarted more than twice in 15 minutes"
+            description: kubectl describe the pod; the last state says OOMKilled or a failed probe.
+        - alert: RailQdrantDown
+          expr: kube_statefulset_status_replicas_ready{namespace="{{ .Release.Namespace }}", statefulset="{{ $full }}-qdrant"} < 1
+          for: 1m
+          labels: {severity: critical}
+          annotations:
+            summary: Qdrant is not Ready
+            description: The api returns 503 for every question until it is back. Readiness does not check Qdrant on purpose (DESIGN D5), so this alert is how it is noticed.
+        - alert: RailQdrantErrors
+          expr: sum(rate(rail_backend_errors_total{backend="qdrant"}[5m])) > 0
+          for: 2m
+          labels: {severity: warning}
+          annotations:
+            summary: The api is getting errors from Qdrant
+            description: Searches are failing; /ask answers 503 for those requests.
+{{- end }}
