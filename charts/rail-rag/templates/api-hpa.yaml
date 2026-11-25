@@ -1,0 +1,23 @@
+{{- $a := .Values.api.autoscaling }}
+{{- if and $a.enabled (eq $a.mode "hpa") }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "rail-rag.fullname" . }}-api
+  labels:
+    {{- include "rail-rag.labels" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "rail-rag.fullname" . }}-api
+  minReplicas: {{ $a.minReplicas }}
+  maxReplicas: {{ $a.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: {{ $a.cpuUtilization }}}
+  behavior:
+    {{- include "rail-rag.hpaBehavior" . | nindent 4 }}
+{{- end }}

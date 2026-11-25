@@ -31,9 +31,15 @@ grafana:
       label: grafana_dashboard
       labelValue: "1"
       searchNamespace: ALL
+  # Grafana 13 used 6.6 of the VM's 8 cores while idle and stopped answering its health check
+  # (D16). The CPU limit keeps it from distorting load-test numbers; alerting lives in Prometheus
+  # and Alertmanager, so Grafana's own alerting engine is switched off.
   resources:
     requests: {cpu: 50m, memory: 128Mi}
-    limits: {memory: 384Mi}
+    limits: {cpu: "1", memory: 384Mi}
+  grafana.ini:
+    unified_alerting:
+      enabled: false
   # Grafana 13 needs several minutes to start when the Docker VM is busy. The chart's default
   # liveness probe (60 s delay, about 160 s in total) kept killing it mid-start, so it never came
   # up; the first install failed that way.

@@ -1,0 +1,13 @@
+# Layered on values-dev.yaml by scripts/bench.sh, for the benchmark workflow on a GitHub runner
+# (4 vCPUs, 16 GB). Smaller pods than on the laptop, so up to 4 api pods (2 CPUs) leave room for
+# the control plane, Prometheus, Qdrant and k6 on the same 4 cores. Decisions: docs/DESIGN.md D17.
+api:
+  resources:
+    requests: {cpu: 500m, memory: 320Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+  embedThreads: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 4
+    cpuUtilization: 70
+    inFlightPerPod: 3

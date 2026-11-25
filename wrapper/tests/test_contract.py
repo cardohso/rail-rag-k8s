@@ -37,3 +37,16 @@ def test_graph_and_tracing_pieces():
     assert callable(tracing.make_tracer)
     assert params(integrity.PinnedStore.__init__) == ["self", "store", "pins"]
     assert callable(integrity.load_pins)
+
+
+def test_local_embedder_attributes_the_threaded_one_sets():
+    from rail_rag.embeddings import LocalEmbedder
+
+    from rail_k8s.embed import ThreadedEmbedder
+
+    upstream = LocalEmbedder()
+    ours = ThreadedEmbedder("BAAI/bge-small-en-v1.5", threads=1)
+    assert set(vars(upstream)) <= set(vars(ours))
+    assert ours.dim == upstream.dim == 384
+    a, b = upstream.embed_query("wheelchair spaces"), ours.embed_query("wheelchair spaces")
+    assert max(abs(x - y) for x, y in zip(a, b, strict=True)) < 1e-5  # same vectors, fewer threads

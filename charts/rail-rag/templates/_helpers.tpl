@@ -50,3 +50,15 @@ readOnlyRootFilesystem: true
 capabilities:
   drop: [ALL]
 {{- end -}}
+
+{{/* Shared by the HPA and the KEDA ScaledObject: fast up, slow down. */}}
+{{- define "rail-rag.hpaBehavior" -}}
+scaleUp:
+  stabilizationWindowSeconds: 0
+  policies:
+    - {type: Pods, value: 2, periodSeconds: 15}
+scaleDown:
+  stabilizationWindowSeconds: {{ .Values.api.autoscaling.scaleDownStabilizationSeconds }}
+  policies:
+    - {type: Pods, value: 1, periodSeconds: 60}
+{{- end }}
