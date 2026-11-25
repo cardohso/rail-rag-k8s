@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Benchmarks behind the README numbers. Each scenario runs N times from the same starting state.
 # Usage: scripts/bench.sh <capacity|hpa|keda|all> [runs]      default runs: 3
-#   capacity  one api pod, autoscaling off, load stepped 1 -> 8 VUs: where a pod saturates
-#   hpa       autoscaling on CPU only: low load, a burst, then low again
+#   capacity  one api pod, autoscaling off, load stepped 1 -> 48 VUs: where a pod saturates
+#   hpa       autoscaling on CPU only: low load, a 40-VU burst, then low again
 #   keda      the same load with KEDA on CPU and requests in flight per pod
 # Results: results/raw/<scenario>-r<n>.{k6,prom,host}.json, summaries in results/raw/bench.log.
 set -euo pipefail
@@ -18,9 +18,10 @@ LOG="$REPO_ROOT/results/raw/bench.log"
 mkdir -p "$(dirname "$LOG")"
 
 # 75 s holds, so each plateau outlasts the 1-minute rate windows.
-CAPACITY_STAGES='[{"duration":"15s","target":1},{"duration":"75s","target":1},{"duration":"10s","target":2},{"duration":"75s","target":2},{"duration":"10s","target":4},{"duration":"75s","target":4},{"duration":"10s","target":6},{"duration":"75s","target":6},{"duration":"10s","target":8},{"duration":"75s","target":8},{"duration":"10s","target":0}]'
-# Low, a 4-minute burst, then low for long enough to watch the scale-down (120 s window + 60 s/pod).
-SCALE_STAGES='[{"duration":"30s","target":2},{"duration":"90s","target":2},{"duration":"30s","target":10},{"duration":"240s","target":10},{"duration":"30s","target":2},{"duration":"330s","target":2},{"duration":"10s","target":0}]'
+CAPACITY_STAGES='[{"duration":"15s","target":1},{"duration":"75s","target":1},{"duration":"10s","target":2},{"duration":"75s","target":2},{"duration":"10s","target":4},{"duration":"75s","target":4},{"duration":"10s","target":6},{"duration":"75s","target":6},{"duration":"10s","target":8},{"duration":"75s","target":8},{"duration":"10s","target":16},{"duration":"75s","target":16},{"duration":"10s","target":32},{"duration":"75s","target":32},{"duration":"10s","target":48},{"duration":"75s","target":48},{"duration":"10s","target":0}]'
+# One pod runs at most 32 generator calls at once (DeadlineLLM's pool), so the burst of 40 VUs
+# queues on one pod and does not on four. Low, a 4-minute burst, then low for long enough to watch the scale-down (120 s window + 60 s/pod).
+SCALE_STAGES='[{"duration":"30s","target":2},{"duration":"90s","target":2},{"duration":"30s","target":40},{"duration":"240s","target":40},{"duration":"30s","target":2},{"duration":"330s","target":2},{"duration":"10s","target":0}]'
 
 deploy() { # deploy <helm --set args...>; replicas through Helm only (kubectl scale conflicts with SSA)
   helm upgrade --install rail-rag "$CHART" --kube-context "$KUBE_CONTEXT" -n rail --create-namespace \
@@ -61,6 +62,9 @@ if [[ "$SCENARIO" =~ ^(hpa|all)$ ]]; then
 fi
 if [[ "$SCENARIO" =~ ^(keda|all)$ ]]; then
   log "keda: CPU and requests in flight per pod"
+  # KEDA refuses a ScaledObject for a Deployment an HPA already manages, and Helm creates the new
+  # object before deleting the old one, so remove the hpa-mode HPA first.
+  deploy --set api.autoscaling.enabled=false --set api.replicas=1
   deploy --set api.autoscaling.enabled=true --set api.autoscaling.mode=keda
   run_n keda "$SCALE_STAGES" 1
   kc -n rail describe hpa keda-hpa-rail-rag-api > "$REPO_ROOT/results/raw/keda-hpa-describe.txt" 2>&1 || true

@@ -17,10 +17,10 @@ def seconds(d: str) -> int:
 def main() -> None:
     k6, prom = json.load(open(sys.argv[1])), json.load(open(sys.argv[2]))
     s, t0 = prom["series"], prom["start"]
-    # The pod start and image pull happen before k6 runs; find when traffic begins.
-    rps = s["rps"]
-    first = next((t for t, v in rps if v > 0), t0)
-    offset = first - t0 - 15  # rate[1m] turns non-zero within about one step
+    # The window starts at pod creation, before k6 runs, and ends when the pod has finished, which
+    # is when the last stage ends (to within the 5 s poll). So traffic began at end - stages.
+    total = sum(seconds(st["duration"]) for st in k6["stages"])
+    offset = max(0, prom["end"] - t0 - total)
     cols = ["rps", "p95_s", "in_flight_per_pod_avg", "api_cpu_cores_per_pod_avg", "replicas_ready"]
     print("| VUs | " + " | ".join(cols) + " |")
     print("|" + "---|" * (len(cols) + 1))
