@@ -295,3 +295,40 @@ request costs 0.033 CPU-s at every load level.
 **Helm 4 and `kubectl scale` conflict:** Helm 4 applies manifests server-side, so after a
 `kubectl scale` it refuses to upgrade the replica count it no longer owns. Scripts set replicas
 through Helm values only.
+
+## D18. Failure tests: what survives, and the one thing that cannot
+
+**The test** (`scripts/chaos.sh`, on the GitHub runner): 3 api pods of 500m, 16 VUs for 5 minutes
+(about 8.4 requests/s, so 2 pods could carry it alone), one fault 90 s in, 3 runs per fault. k6
+runs on the node that holds Qdrant, so the drain never removes the test's own client, and the
+drained node is the other worker because Qdrant's volume is bound to its node. Results for run
+45812596011 are in `results/chaos-45812596011.md` (from `scripts/chaos_report.py`), raw data in
+`results/chaos/45812596011/`.
+
+| fault | failed requests (3 runs, ~2,740 each) | p95 | 3 pods ready, from the fault |
+|---|---|---|---|
+| graceful pod delete | 0, 0, 0 | 2.22 s | 7-8 s |
+| rolling restart (maxSurge 1, maxUnavailable 0) | 0, 0, 0 | 2.22 s | 26 s |
+| node drain | 0, 0, 0 | 2.22 s | not recorded (below) |
+| SIGKILL of one api container | 7, 13, 12 | 2.22 s | 11, 22, 30 s |
+
+**Graceful removal loses nothing.** The preStop sleep (5 s) keeps a pod serving while it leaves
+the Service, then SIGTERM lets uvicorn finish in-flight requests. During the drain the
+PodDisruptionBudget refused the second api pod's eviction twice ("would violate the pod's
+disruption budget") until the first pod's replacement was ready, so at most one pod was ever
+missing. p95 is the same as without a fault in every run.
+
+**A crash loses the requests in flight, and that is a limit, not a bug.** Of the 7-13 failures
+per run, 6-9 are `EOF`: requests that pod had been answering for 50-2,018 ms, which no server can
+complete after SIGKILL. The other 1-6 are `connection refused`: new connections that reached the
+pod in the moment between the kill and its removal from the Service; the last came 0.55 s after
+the kill. After that the two other pods carry the load at the same p95. That is 0.25-0.47% of a
+run's requests, all within one second. Kubernetes cannot hide it; the fix belongs in the client:
+`/ask` only reads, so retrying once on a connection error is safe (README limitations, step 9). Recovery
+grows 11, 22, 30 s because the same container was killed three times in 11 minutes and the kubelet
+doubles its restart delay each time (crash backoff), which is the intended behaviour.
+
+**Measurement fix:** `kubectl drain` returns only after its evictions finish, so in this run the
+script's recovery timer started when the pods were already back and read 0 s. `chaos.sh` now
+times every fault from the moment it is applied (`fault_to_ready_s`); the drain figure comes with
+the next run. For the other faults, the table adds the script's fixed 3 s pause to the old timer.

@@ -1,0 +1,156 @@
+run: chaos-kill-r1  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2732  failed: 0.00%  answered: 2732  refused: 0
+latency ms: med=1886  p(95)=2219  p(99)=2258  max=3568
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 8.33
+  peak rps: 8.80
+  peak api_cpu_cores_per_pod_avg: 0.11
+  peak api_cpu_cores_total: 0.36
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 11.99
+  desired replicas over time: +0s->3
+run: chaos-kill-r2  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2735  failed: 0.00%  answered: 2735  refused: 0
+latency ms: med=1886  p(95)=2219  p(99)=2255  max=3056
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 8.00
+  peak rps: 8.71
+  peak api_cpu_cores_per_pod_avg: 0.11
+  peak api_cpu_cores_total: 0.34
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.00
+  desired replicas over time: +0s->3
+run: chaos-kill-r3  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2748  failed: 0.00%  answered: 2748  refused: 0
+latency ms: med=1824  p(95)=2219  p(99)=2249  max=2408
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 7.33
+  peak rps: 8.87
+  peak api_cpu_cores_per_pod_avg: 0.11
+  peak api_cpu_cores_total: 0.34
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 1.99
+  desired replicas over time: +0s->3
+run: chaos-crash-r1  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2732  failed: 0.26%  answered: 2725  refused: 0
+latency ms: med=1886  p(95)=2219  p(99)=2270  max=3693
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 7.67
+  peak rps: 8.80
+  peak api_cpu_cores_per_pod_avg: 0.11
+  peak api_cpu_cores_total: 0.35
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.05
+  desired replicas over time: +0s->3
+run: chaos-crash-r2  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2743  failed: 0.47%  answered: 2730  refused: 0
+latency ms: med=1886  p(95)=2219  p(99)=2261  max=3905
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 7.50
+  peak rps: 8.78
+  peak api_cpu_cores_per_pod_avg: 0.11
+  peak api_cpu_cores_total: 0.33
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.07
+  desired replicas over time: +0s->3
+run: chaos-crash-r3  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2752  failed: 0.44%  answered: 2740  refused: 0
+latency ms: med=1886  p(95)=2220  p(99)=2258  max=2462
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 9.00
+  peak rps: 8.80
+  peak api_cpu_cores_per_pod_avg: 0.12
+  peak api_cpu_cores_total: 0.35
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.06
+  desired replicas over time: +0s->3
+run: chaos-rollout-r1  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2748  failed: 0.00%  answered: 2748  refused: 0
+latency ms: med=1822  p(95)=2219  p(99)=2262  max=3197
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 7.00
+  peak rps: 8.71
+  peak api_cpu_cores_per_pod_avg: 0.13
+  peak api_cpu_cores_total: 0.45
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.65
+  desired replicas over time: +0s->3
+run: chaos-rollout-r2  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2741  failed: 0.00%  answered: 2741  refused: 0
+latency ms: med=1885  p(95)=2219  p(99)=2241  max=2467
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 6.67
+  peak rps: 8.67
+  peak api_cpu_cores_per_pod_avg: 0.10
+  peak api_cpu_cores_total: 0.50
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.62
+  desired replicas over time: +0s->3
+run: chaos-rollout-r3  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2728  failed: 0.00%  answered: 2728  refused: 0
+latency ms: med=1886  p(95)=2219  p(99)=2245  max=2312
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 6.67
+  peak rps: 8.62
+  peak api_cpu_cores_per_pod_avg: 0.12
+  peak api_cpu_cores_total: 0.48
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.54
+  desired replicas over time: +0s->3
+run: chaos-drain-r1  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2738  failed: 0.00%  answered: 2738  refused: 0
+latency ms: med=1885  p(95)=2219  p(99)=2257  max=4734
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 7.33
+  peak rps: 9.00
+  peak api_cpu_cores_per_pod_avg: 0.13
+  peak api_cpu_cores_total: 0.46
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 3.39
+  desired replicas over time: +0s->3
+run: chaos-drain-r2  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2742  failed: 0.00%  answered: 2742  refused: 0
+latency ms: med=1885  p(95)=2219  p(99)=2253  max=2999
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 6.67
+  peak rps: 8.78
+  peak api_cpu_cores_per_pod_avg: 0.12
+  peak api_cpu_cores_total: 0.39
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.22
+  desired replicas over time: +0s->3
+run: chaos-drain-r3  stages: [{"duration": "30s", "target": 16}, {"duration": "300s", "target": 16}, {"duration": "10s", "target": 0}]
+requests: 2733  failed: 0.00%  answered: 2733  refused: 0
+latency ms: med=1886  p(95)=2219  p(99)=2264  max=2869
+  peak replicas_desired: 3.00
+  peak replicas_ready: 3.00
+  peak in_flight_per_pod_avg: 7.00
+  peak rps: 8.73
+  peak api_cpu_cores_per_pod_avg: 0.11
+  peak api_cpu_cores_total: 0.40
+  peak k6_cpu_cores: 0.01
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.24
+  desired replicas over time: +0s->3

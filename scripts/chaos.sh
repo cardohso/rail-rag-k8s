@@ -64,33 +64,37 @@ DRAIN_NODE="$(kc get nodes -l '!node-role.kubernetes.io/control-plane' -o name |
 export K6_NODE="$QDRANT_NODE"
 
 inject() { # inject <scenario> <run name>: apply the fault, wait for recovery, write <run>.chaos.json
-  local s="$1" name="$2" target="" node="" at recovered
+  local s="$1" name="$2" target="" node="" at recovered t0
   case "$s" in
     kill)
       read -r target node < <(api_pods | head -1)
-      at="$(date -u +%FT%TZ)"
+      at="$(date -u +%FT%TZ)"; t0=$SECONDS
       kc -n rail delete pod "$target" --wait=false >/dev/null ;;
     crash)
       read -r target node < <(api_pods | head -1)
       local cid
       cid="$(kc -n rail get pod "$target" -o jsonpath='{.status.containerStatuses[0].containerID}')"
-      at="$(date -u +%FT%TZ)"
+      at="$(date -u +%FT%TZ)"; t0=$SECONDS
       # kind nodes are Docker containers; a 0 s timeout makes the runtime send SIGKILL at once.
       docker exec "$node" crictl stop --timeout 0 "${cid#containerd://}" >/dev/null ;;
     rollout)
-      at="$(date -u +%FT%TZ)"
+      at="$(date -u +%FT%TZ)"; t0=$SECONDS
       kc -n rail rollout restart deploy/rail-rag-api >/dev/null ;;
     drain)
       node="$DRAIN_NODE"
-      at="$(date -u +%FT%TZ)"
+      at="$(date -u +%FT%TZ)"; t0=$SECONDS
       kc drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=300s >/dev/null ;;
   esac
   sleep 3 # let the controllers see the change before checking for recovery
   recovered="$(wait_settled 400)"
-  log "${s}: fault at ${at} on ${target:-deployment} ${node}, ${REPLICAS} pods ready again after ${recovered} s"
+  # From the fault itself: kubectl drain blocks until its evictions finish, so the wait above
+  # alone reads 0 s for a drain.
+  local fault_to_ready=$((SECONDS - t0))
+  log "${s}: fault at ${at} on ${target:-deployment} ${node}, ${REPLICAS} pods ready ${fault_to_ready} s after it"
   jq -n --arg s "$s" --arg at "$at" --arg target "$target" --arg node "$node" \
-    --argjson recovered "$recovered" \
-    '{scenario: $s, fault_at: $at, target_pod: $target, node: $node, recovered_s: $recovered}' \
+    --argjson recovered "$recovered" --argjson ftr "$fault_to_ready" \
+    '{scenario: $s, fault_at: $at, target_pod: $target, node: $node, recovered_s: $recovered,
+      fault_to_ready_s: $ftr}' \
     > "$OUT/${name}.chaos.json"
 }
 

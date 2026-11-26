@@ -1,0 +1,7 @@
+{
+  "scenario": "drain",
+  "fault_at": "2026-11-26T12:52:05Z",
+  "target_pod": "",
+  "node": "rail-k8s-worker",
+  "recovered_s": 0
+}

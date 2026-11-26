@@ -1,0 +1,7 @@
+{
+  "scenario": "kill",
+  "fault_at": "2026-11-26T11:53:36Z",
+  "target_pod": "rail-rag-api-5886665dd8-k7fjw",
+  "node": "rail-k8s-worker2",
+  "recovered_s": 5
+}
