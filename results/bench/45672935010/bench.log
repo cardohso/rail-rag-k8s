@@ -1,0 +1,117 @@
+run: capacity-r1  stages: [{"duration": "15s", "target": 1}, {"duration": "75s", "target": 1}, {"duration": "10s", "target": 2}, {"duration": "75s", "target": 2}, {"duration": "10s", "target": 4}, {"duration": "75s", "target": 4}, {"duration": "10s", "target": 6}, {"duration": "75s", "target": 6}, {"duration": "10s", "target": 8}, {"duration": "75s", "target": 8}, {"duration": "10s", "target": 16}, {"duration": "75s", "target": 16}, {"duration": "10s", "target": 32}, {"duration": "75s", "target": 32}, {"duration": "10s", "target": 48}, {"duration": "75s", "target": 48}, {"duration": "10s", "target": 0}]
+requests: 4151  failed: 0.00%  answered: 4151  refused: 0
+latency ms: med=2198  p(95)=3673  p(99)=4405  max=5572
+  peak replicas_desired: 1.00
+  peak replicas_ready: 1.00
+  peak in_flight_per_pod_avg: 48.00
+  peak rps: 14.58
+  peak api_cpu_cores_per_pod_avg: 0.48
+  peak api_cpu_cores_total: 0.48
+  peak k6_cpu_cores: 0.02
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 11.79
+  desired replicas over time: +0s->1
+run: capacity-r2  stages: [{"duration": "15s", "target": 1}, {"duration": "75s", "target": 1}, {"duration": "10s", "target": 2}, {"duration": "75s", "target": 2}, {"duration": "10s", "target": 4}, {"duration": "75s", "target": 4}, {"duration": "10s", "target": 6}, {"duration": "75s", "target": 6}, {"duration": "10s", "target": 8}, {"duration": "75s", "target": 8}, {"duration": "10s", "target": 16}, {"duration": "75s", "target": 16}, {"duration": "10s", "target": 32}, {"duration": "75s", "target": 32}, {"duration": "10s", "target": 48}, {"duration": "75s", "target": 48}, {"duration": "10s", "target": 0}]
+requests: 4187  failed: 0.00%  answered: 4187  refused: 0
+latency ms: med=2197  p(95)=3514  p(99)=4292  max=5293
+  peak replicas_desired: 1.00
+  peak replicas_ready: 1.00
+  peak in_flight_per_pod_avg: 46.00
+  peak rps: 14.89
+  peak api_cpu_cores_per_pod_avg: 0.48
+  peak api_cpu_cores_total: 0.48
+  peak k6_cpu_cores: 0.02
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.25
+  desired replicas over time: +0s->1
+run: capacity-r3  stages: [{"duration": "15s", "target": 1}, {"duration": "75s", "target": 1}, {"duration": "10s", "target": 2}, {"duration": "75s", "target": 2}, {"duration": "10s", "target": 4}, {"duration": "75s", "target": 4}, {"duration": "10s", "target": 6}, {"duration": "75s", "target": 6}, {"duration": "10s", "target": 8}, {"duration": "75s", "target": 8}, {"duration": "10s", "target": 16}, {"duration": "75s", "target": 16}, {"duration": "10s", "target": 32}, {"duration": "75s", "target": 32}, {"duration": "10s", "target": 48}, {"duration": "75s", "target": 48}, {"duration": "10s", "target": 0}]
+requests: 4145  failed: 0.02%  answered: 4144  refused: 0
+latency ms: med=2197  p(95)=3539  p(99)=4580  max=5000
+  peak replicas_desired: 1.00
+  peak replicas_ready: 1.00
+  peak in_flight_per_pod_avg: 48.00
+  peak rps: 14.98
+  peak api_cpu_cores_per_pod_avg: 0.48
+  peak api_cpu_cores_total: 0.48
+  peak k6_cpu_cores: 0.02
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.27
+  desired replicas over time: +0s->1
+run: hpa-r1  stages: [{"duration": "30s", "target": 2}, {"duration": "90s", "target": 2}, {"duration": "30s", "target": 40}, {"duration": "240s", "target": 40}, {"duration": "30s", "target": 2}, {"duration": "330s", "target": 2}, {"duration": "10s", "target": 0}]
+requests: 5895  failed: 0.00%  answered: 5895  refused: 0
+latency ms: med=1932  p(95)=2594  p(99)=3281  max=8269
+  peak replicas_desired: 2.00
+  peak replicas_ready: 2.00
+  peak in_flight_per_pod_avg: 39.00
+  peak rps: 21.11
+  peak api_cpu_cores_per_pod_avg: 0.41
+  peak api_cpu_cores_total: 0.69
+  peak k6_cpu_cores: 0.02
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 3.02
+  desired replicas over time: +0s->1 +180s->2 +555s->1
+run: hpa-r2  stages: [{"duration": "30s", "target": 2}, {"duration": "90s", "target": 2}, {"duration": "30s", "target": 40}, {"duration": "240s", "target": 40}, {"duration": "30s", "target": 2}, {"duration": "330s", "target": 2}, {"duration": "10s", "target": 0}]
+requests: 5950  failed: 0.00%  answered: 5950  refused: 0
+latency ms: med=1932  p(95)=2470  p(99)=3096  max=3782
+  peak replicas_desired: 2.00
+  peak replicas_ready: 2.00
+  peak in_flight_per_pod_avg: 37.00
+  peak rps: 21.31
+  peak api_cpu_cores_per_pod_avg: 0.34
+  peak api_cpu_cores_total: 0.68
+  peak k6_cpu_cores: 0.02
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 2.98
+  desired replicas over time: +0s->1 +165s->2 +555s->1
+run: hpa-r3  stages: [{"duration": "30s", "target": 2}, {"duration": "90s", "target": 2}, {"duration": "30s", "target": 40}, {"duration": "240s", "target": 40}, {"duration": "30s", "target": 2}, {"duration": "330s", "target": 2}, {"duration": "10s", "target": 0}]
+requests: 5921  failed: 0.00%  answered: 5921  refused: 0
+latency ms: med=1932  p(95)=2701  p(99)=3190  max=4117
+  peak replicas_desired: 2.00
+  peak replicas_ready: 2.00
+  peak in_flight_per_pod_avg: 40.00
+  peak rps: 21.04
+  peak api_cpu_cores_per_pod_avg: 0.39
+  peak api_cpu_cores_total: 0.68
+  peak k6_cpu_cores: 0.02
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 3.02
+  desired replicas over time: +0s->1 +180s->2 +555s->1
+run: keda-r1  stages: [{"duration": "30s", "target": 2}, {"duration": "90s", "target": 2}, {"duration": "30s", "target": 40}, {"duration": "240s", "target": 40}, {"duration": "30s", "target": 2}, {"duration": "330s", "target": 2}, {"duration": "10s", "target": 0}]
+requests: 6256  failed: 0.00%  answered: 6256  refused: 0
+latency ms: med=1885  p(95)=2230  p(99)=2308  max=4068
+  peak replicas_desired: 4.00
+  peak replicas_ready: 4.00
+  peak in_flight_per_pod_avg: 20.00
+  peak rps: 21.64
+  peak api_cpu_cores_per_pod_avg: 0.20
+  peak api_cpu_cores_total: 0.79
+  peak k6_cpu_cores: 0.03
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 3.43
+  desired replicas over time: +0s->1 +150s->2 +180s->4 +525s->3 +585s->2 +645s->1
+run: keda-r2  stages: [{"duration": "30s", "target": 2}, {"duration": "90s", "target": 2}, {"duration": "30s", "target": 40}, {"duration": "240s", "target": 40}, {"duration": "30s", "target": 2}, {"duration": "330s", "target": 2}, {"duration": "10s", "target": 0}]
+requests: 6199  failed: 0.00%  answered: 6199  refused: 0
+latency ms: med=1886  p(95)=2245  p(99)=2604  max=4671
+  peak replicas_desired: 4.00
+  peak replicas_ready: 4.00
+  peak in_flight_per_pod_avg: 27.00
+  peak rps: 21.73
+  peak api_cpu_cores_per_pod_avg: 0.21
+  peak api_cpu_cores_total: 0.77
+  peak k6_cpu_cores: 0.02
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 3.47
+  desired replicas over time: +0s->1 +165s->3 +195s->4 +540s->3 +600s->2 +660s->1
+run: keda-r3  stages: [{"duration": "30s", "target": 2}, {"duration": "90s", "target": 2}, {"duration": "30s", "target": 40}, {"duration": "240s", "target": 40}, {"duration": "30s", "target": 2}, {"duration": "330s", "target": 2}, {"duration": "10s", "target": 0}]
+requests: 6183  failed: 0.00%  answered: 6183  refused: 0
+latency ms: med=1887  p(95)=2257  p(99)=2785  max=3529
+  peak replicas_desired: 4.00
+  peak replicas_ready: 4.00
+  peak in_flight_per_pod_avg: 28.00
+  peak rps: 21.62
+  peak api_cpu_cores_per_pod_avg: 0.27
+  peak api_cpu_cores_total: 0.80
+  peak k6_cpu_cores: 0.03
+  peak grafana_cpu_cores: nan
+  peak node_cpu_busy_cores: 3.52
+  desired replicas over time: +0s->1 +165s->3 +195s->4 +540s->3 +600s->2 +660s->1

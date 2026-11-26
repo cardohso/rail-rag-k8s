@@ -61,7 +61,9 @@ until phase=$(kc -n "$NS" get pod "$POD" -o jsonpath='{.status.phase}') && [[ "$
 done
 END=$(date +%s)
 log "k6 finished (${phase}) after $((END - START)) s"
-kc -n "$NS" logs "$POD" | sed -n '/===K6_SUMMARY_BEGIN===/,/===K6_SUMMARY_END===/p' | sed '1d;$d' > "$OUT/${NAME}.k6.json"
+kc -n "$NS" logs "$POD" > "$OUT/${NAME}.k6.log"
+sed -n '/===K6_SUMMARY_BEGIN===/,/===K6_SUMMARY_END===/p' "$OUT/${NAME}.k6.log" | sed '1d;$d' > "$OUT/${NAME}.k6.json"
+log "failed requests logged: $(grep -c 'ASK_FAIL' "$OUT/${NAME}.k6.log" || true) (${NAME}.k6.log)"
 [ -s "$OUT/${NAME}.k6.json" ] || { kc -n "$NS" logs "$POD" | tail -20; die "no k6 summary"; }
 printf '{"host_load_before": "%s", "host_load_after": "%s"}\n' "$LOAD_BEFORE" "$(host_load)" \
   > "$OUT/${NAME}.host.json"

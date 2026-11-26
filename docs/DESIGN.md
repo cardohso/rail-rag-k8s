@@ -267,10 +267,31 @@ at most 4, which leaves 2 cores for the control plane, Prometheus, Qdrant and k6
 have their own noise, so each scenario runs 3 times and the spread is reported. Every run also
 records the host's load average (`results/raw/<run>.host.json`).
 
-**Targets are provisional until the first workflow run:** CPU 70% of the request, 3 requests in
-flight per pod. At about 0.28 CPU-s per request (run 2), a 500m pod saturates near 1.8
-requests/s, which at about 2 s per request is about 3.6 in flight, so the two targets should fire
-at similar load. The capacity scenario in the workflow measures this on the runner.
+**Measured on the runner** (workflow run 45672935010, 3 runs per scenario; data in
+`results/bench/45672935010/`, tables in `results/bench-45672935010.md` from
+`scripts/bench_report.py`). The laptop's 0.28 CPU-s per request was contention: on the runner a
+request costs 0.033 CPU-s at every load level.
+
+- *One pod saturates near 14.5 requests/s.* Throughput grows linearly to 32 users (14.1-14.5
+  req/s, p95 2.9 s), then stays flat at 48 (14.2-14.7 req/s) while p95 rises to 4.9 s. At that
+  point the pod is at its CPU limit (0.47 of 0.5) and at the 32 generator calls it can run at once
+  (`DeadlineLLM`'s pool); this test cannot say which binds first, since both arrive together.
+- *A 40-user burst:* the CPU HPA scales to 2 pods, 36-56 s after the burst starts, and stops
+  there, because two pods sit at 68% of their request, just under the 70% target. KEDA scales on
+  in-flight requests first (22-42 s to 2 pods) and on to 4. Neither failed a request. Over the
+  whole run p95 is 2.47-2.70 s with the HPA and 2.23-2.26 s with KEDA; with KEDA it equals the
+  unloaded p95 (2.22 s), with the HPA the extra is the minute one pod carries the burst alone.
+  After the burst, the HPA is back to 1 pod in about 2 minutes and KEDA in about 4 (the 120 s
+  window, then one pod a minute).
+- *Targets:* 10 in flight per pod, about a third of where one pod saturates, and CPU 70% as the
+  second trigger. CPU alone works but reacts later and less, because a pod waiting on the
+  generator uses little CPU per request in flight.
+- *Two caveats.* Prometheus's p95 (2.8 s unloaded) is higher than k6's (2.2 s) because it
+  interpolates inside the 2.5-5 s histogram bucket; the tables say which one they use. One request
+  of 4,145 failed in capacity run 3 with no 5xx recorded by the api, so it never got an HTTP
+  answer; k6 now logs each failure (`ASK_FAIL` lines in `<run>.k6.log`) so the next one has a
+  cause.
+
 **Helm 4 and `kubectl scale` conflict:** Helm 4 applies manifests server-side, so after a
 `kubectl scale` it refuses to upgrade the replica count it no longer owns. Scripts set replicas
 through Helm values only.

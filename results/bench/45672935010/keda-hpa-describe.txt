@@ -1,0 +1,146 @@
+Name:                                                  keda-hpa-rail-rag-api
+Namespace:                                             rail
+Labels:                                                app.kubernetes.io/component=api
+                                                       app.kubernetes.io/instance=rail-rag
+                                                       app.kubernetes.io/managed-by=Helm
+                                                       app.kubernetes.io/name=rail-rag
+                                                       app.kubernetes.io/part-of=rail-rag-api
+                                                       app.kubernetes.io/version=0.1.0
+                                                       helm.sh/chart=rail-rag-0.1.0
+                                                       scaledobject.keda.sh/name=rail-rag-api
+Annotations:                                           meta.helm.sh/release-name: rail-rag
+                                                       meta.helm.sh/release-namespace: rail
+CreationTimestamp:                                     Wed, 25 Nov 2026 19:33:26 +0000
+Reference:                                             Deployment/rail-rag-api
+Metrics:                                               ( current / target )
+  "s1-prometheus" (target average value):              2 / 10
+  resource cpu on pods  (as a percentage of request):  7% (36m) / 70%
+Min replicas:                                          1
+Max replicas:                                          4
+Behavior:
+  Scale Up:
+    Stabilization Window: 0 seconds
+    Select Policy: Max
+    Policies:
+      - Type: Pods  Value: 2  Period: 15 seconds
+  Scale Down:
+    Stabilization Window: 120 seconds
+    Select Policy: Max
+    Policies:
+      - Type: Pods  Value: 1  Period: 60 seconds
+Deployment pods:    1 current / 1 desired
+Conditions:
+  Type            Status  Reason              Message
+  ----            ------  ------              -------
+  AbleToScale     True    ReadyForNewScale    recommended size matches current size
+  ScalingActive   True    ValidMetricFound    the HPA was able to successfully calculate a replica count from external metric s1-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: rail-rag-api,},MatchExpressions:[]LabelSelectorRequirement{},})
+  ScalingLimited  False   DesiredWithinRange  the desired count is within the acceptable range
+Events:
+  Type    Reason             Age                  From                       Message
+  ----    ------             ----                 ----                       -------
+  Normal  SuccessfulRescale  36m                  horizontal-pod-autoscaler  New size: 2; reason: external metric s1-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: rail-rag-api,},MatchExpressions:[]LabelSelectorRequirement{},}) above target
+  Normal  SuccessfulRescale  10m (x2 over 23m)    horizontal-pod-autoscaler  New size: 3; reason: external metric s1-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: rail-rag-api,},MatchExpressions:[]LabelSelectorRequirement{},}) above target
+  Normal  SuccessfulRescale  9m45s (x3 over 35m)  horizontal-pod-autoscaler  New size: 4; reason: external metric s1-prometheus(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: rail-rag-api,},MatchExpressions:[]LabelSelectorRequirement{},}) above target
+  Normal  SuccessfulRescale  4m (x3 over 29m)     horizontal-pod-autoscaler  New size: 3; reason: All metrics below target
+  Normal  SuccessfulRescale  3m (x3 over 28m)     horizontal-pod-autoscaler  New size: 2; reason: All metrics below target
+  Normal  SuccessfulRescale  2m (x3 over 27m)     horizontal-pod-autoscaler  New size: 1; reason: All metrics below target
+Name:         rail-rag-api
+Namespace:    rail
+Labels:       app.kubernetes.io/component=api
+              app.kubernetes.io/instance=rail-rag
+              app.kubernetes.io/managed-by=Helm
+              app.kubernetes.io/name=rail-rag
+              app.kubernetes.io/version=0.1.0
+              helm.sh/chart=rail-rag-0.1.0
+              scaledobject.keda.sh/name=rail-rag-api
+Annotations:  meta.helm.sh/release-name: rail-rag
+              meta.helm.sh/release-namespace: rail
+API Version:  keda.sh/v1alpha1
+Kind:         ScaledObject
+Metadata:
+  Creation Timestamp:  2026-11-25T19:33:25Z
+  Finalizers:
+    finalizer.keda.sh
+  Generation:        2
+  Resource Version:  17308
+  UID:               d195208c-2f78-466d-bd39-e59839892c1f
+Spec:
+  Advanced:
+    Horizontal Pod Autoscaler Config:
+      Behavior:
+        Scale Down:
+          Policies:
+            Period Seconds:              60
+            Type:                        Pods
+            Value:                       1
+          Stabilization Window Seconds:  120
+        Scale Up:
+          Policies:
+            Period Seconds:              15
+            Type:                        Pods
+            Value:                       2
+          Stabilization Window Seconds:  0
+    Scaling Modifiers:
+  Max Replica Count:  4
+  Min Replica Count:  1
+  Polling Interval:   15
+  Scale Target Ref:
+    Name:  rail-rag-api
+  Triggers:
+    Metadata:
+      Value:      70
+    Metric Type:  Utilization
+    Type:         cpu
+    Metadata:
+      Query:           sum(rail_http_requests_in_flight{namespace="rail", service="rail-rag-api"})
+      Server Address:  http://kps-prometheus.monitoring.svc:9090
+      Threshold:       10
+    Metric Type:       AverageValue
+    Type:              prometheus
+Status:
+  Authentications Types:  
+  Conditions:
+    Message:  ScaledObject is defined correctly and is ready for scaling
+    Reason:   ScaledObjectReady
+    Status:   True
+    Type:     Ready
+    Message:  Scaling is performed because triggers are active
+    Reason:   ScalerActive
+    Status:   True
+    Type:     Active
+    Message:  No fallbacks are active on this scaled object
+    Reason:   NoFallbackFound
+    Status:   False
+    Type:     Fallback
+    Status:   False
+    Type:     Paused
+    Message:  HPA is actively scaling
+    Reason:   HPAActive
+    Status:   True
+    Type:     HPAActive
+  External Metric Names:
+    s1-prometheus
+  Hpa Name:                keda-hpa-rail-rag-api
+  Last Active Time:        2026-11-25T20:11:41Z
+  Original Replica Count:  1
+  Resource Metric Names:
+    cpu
+  Scale Target GVKR:
+    Group:            apps
+    Kind:             Deployment
+    Resource:         deployments
+    Version:          v1
+  Scale Target Kind:  apps/v1.Deployment
+  Triggers Activity:
+    s1-prometheus:
+      Is Active:   true
+  Triggers Types:  cpu,prometheus
+Events:
+  Type    Reason              Age                From            Message
+  ----    ------              ----               ----            -------
+  Normal  KEDAScalerInfo      38m                keda-admission  PollingInterval is configured but is not relevant for scaling. It only affects scaling when minReplicaCount = 0, idleReplicaCount is set, or useCachedMetrics is enabled, but it still controls how often KEDA refreshes the ScaledObject status conditions and events
+  Normal  KEDAScalerInfo      38m                keda-admission  PollingInterval is configured but is not relevant for scaling. It only affects scaling when minReplicaCount = 0, idleReplicaCount is set, or useCachedMetrics is enabled, but it still controls how often KEDA refreshes the ScaledObject status conditions and events
+  Normal  KEDAScalerInfo      38m                keda-admission  PollingInterval is configured but is not relevant for scaling. It only affects scaling when minReplicaCount = 0, idleReplicaCount is set, or useCachedMetrics is enabled, but it still controls how often KEDA refreshes the ScaledObject status conditions and events
+  Normal  KEDAScalersStarted  38m (x2 over 38m)  keda-operator   Scaler cpu is built
+  Normal  KEDAScalersStarted  38m                keda-operator   Started scalers watch
+  Normal  ScaledObjectReady   38m                keda-operator   ScaledObject is ready for scaling

@@ -45,6 +45,14 @@ export default function () {
     tags: { name: 'ask' },
   });
   const ok = check(res, { 'status is 200': (r) => r.status === 200 });
+  if (!ok) {
+    // One line per failure, kept in <run>.k6.log: status 0 with an error_code means the request
+    // never got an HTTP answer (connect, reset or timeout), which Prometheus cannot see.
+    console.warn('ASK_FAIL ' + JSON.stringify({
+      t: new Date().toISOString(), vu: __VU, status: res.status, error: res.error,
+      error_code: res.error_code, ms: Math.round(res.timings.duration),
+    }));
+  }
   if (ok) {
     if (res.json('refused')) refused.add(1); else answered.add(1);
   }
