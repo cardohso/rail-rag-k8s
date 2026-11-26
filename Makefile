@@ -43,7 +43,13 @@ netpol-test: ## Prove the NetworkPolicies are enforced (needs a running release)
 alert-test: ## Take Qdrant down and check the 503, the Ready pods and the alert (about 5 min)
 	tests/alert-qdrant-test.sh
 
+smoke-test: ## Probes, one question and the metrics (needs a release with the fake generator)
+	tests/smoke-test.sh
+
+quality-gate: ## goldpass with the real generator (needs your own Secret; uses your quota)
+	scripts/quality-gate.sh
+
 secrets: ## Secret scan of the working tree and git history
 	gitleaks detect --source . --no-banner --redact
 
-.PHONY: help up down status image monitoring deploy alert-test baseline machine lint chart-validate netpol-test secrets
+.PHONY: help up down status image monitoring deploy alert-test baseline machine lint chart-validate netpol-test smoke-test quality-gate secrets

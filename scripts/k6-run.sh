@@ -9,6 +9,8 @@ set -euo pipefail
 # shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 need kubectl python3 curl
+# PROMETHEUS=0 skips the Prometheus series and summary, for a cluster without monitoring (CI).
+PROMETHEUS="${PROMETHEUS:-1}"
 NAME="${1:?run name}"
 STAGES="${2:?stages JSON}"
 THINK_MS="${3:-0}"
@@ -72,6 +74,11 @@ log "failed requests logged: $(grep -c 'ASK_FAIL' "$OUT/${NAME}.k6.log" || true)
 printf '{"host_load_before": "%s", "host_load_after": "%s"}\n' "$LOAD_BEFORE" "$(host_load)" \
   > "$OUT/${NAME}.host.json"
 log "host load average before: ${LOAD_BEFORE}  after: $(host_load)"
+
+if [ "$PROMETHEUS" = 0 ]; then
+  kc -n "$NS" delete pod "$POD" --wait=false >/dev/null
+  exit 0
+fi
 
 # Prometheus series for the run window, 15 s apart, for the analysis and the README tables.
 kc -n monitoring port-forward svc/kps-prometheus 19092:9090 >/dev/null 2>&1 &

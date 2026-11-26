@@ -1,7 +1,9 @@
 name: ci
 
-# Static checks: shell lint, chart validation, secret scan. The job that installs the chart on a
-# kind cluster and runs a smoke and load test is added in step 8.
+# Static checks (shell lint, chart validation, secret scan) and an end-to-end job: a kind cluster,
+# the chart with the fake generator, a smoke test, the NetworkPolicy test and a short load test.
+# No job needs a secret or calls a real model; the goldpass gate is run by hand
+# (scripts/quality-gate.sh).
 on:
   push:
     branches: [main]
@@ -49,3 +51,48 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  kind:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+        with: {version: v4.3.2}
+      - uses: azure/setup-kubectl@v4
+        with: {version: v1.36.1}
+      - name: Install kind 0.33.0
+        run: |
+          arch="$(dpkg --print-architecture)"
+          curl -sSfLo kind "https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-${arch}"
+          sudo install -m 0755 kind /usr/local/bin/kind
+      - name: Create the cluster
+        run: scripts/up.sh
+      - name: Build the api image (runs the wrapper tests) and load it
+        run: scripts/build-image.sh
+      - name: Install the chart and wait for it to be ready
+        run: |
+          helm upgrade --install rail-rag charts/rail-rag --kube-context kind-rail-k8s \
+            -n rail --create-namespace -f charts/rail-rag/values-ci.yaml --wait --timeout 15m
+          kubectl --context kind-rail-k8s -n rail rollout status deploy/rail-rag-api --timeout=10m
+      - name: Smoke test
+        run: tests/smoke-test.sh
+      - name: NetworkPolicy test
+        run: tests/netpol-test.sh
+      - name: Short load test, no failed requests allowed
+        env:
+          PROMETHEUS: "0"
+        run: |
+          scripts/k6-run.sh ci '[{"duration":"15s","target":4},{"duration":"60s","target":4},{"duration":"5s","target":0}]'
+          jq -e '.metrics | (.http_req_failed.values.passes == 0) and (.http_reqs.values.count > 20)' \
+            results/raw/ci.k6.json
+      - name: Cluster state on failure
+        if: failure()
+        run: |
+          kubectl --context kind-rail-k8s get pods -A -o wide || true
+          kubectl --context kind-rail-k8s get events -n rail --sort-by=.lastTimestamp || true
+          kubectl --context kind-rail-k8s -n rail logs -l app.kubernetes.io/instance=rail-rag \
+            --all-containers --tail=100 || true
+      - name: Delete the cluster
+        if: always()
+        run: scripts/down.sh
