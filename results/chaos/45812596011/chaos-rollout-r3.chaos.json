@@ -1,0 +1,7 @@
+{
+  "scenario": "rollout",
+  "fault_at": "2026-11-26T12:33:59Z",
+  "target_pod": "",
+  "node": "",
+  "recovered_s": 23
+}
