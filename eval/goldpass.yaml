@@ -1,0 +1,13 @@
+# goldpass gate for the in-cluster api with the real generator (scripts/quality-gate.sh).
+# golden.jsonl and thresholds.yaml are copied unchanged from cardohso/goldpass b10c0a9,
+# examples/rail/golden.jsonl and thresholds-live.yaml: the same bar as the live demo's gate.
+# /ask returns citations but not the retrieved passages, so retrieval metrics are not scored.
+golden: golden.jsonl
+thresholds: thresholds.yaml
+out: ../results/quality-gate.json
+system:
+  type: http
+  url: http://127.0.0.1:18080/ask
+  timeout_s: 60
+  min_interval_s: 13          # up to 3 generator calls a question, within a free-tier rate limit
+  retry: {attempts: 6, backoff_s: 15, max_wait_s: 90}

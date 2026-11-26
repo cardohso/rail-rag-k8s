@@ -332,3 +332,20 @@ doubles its restart delay each time (crash backoff), which is the intended behav
 script's recovery timer started when the pods were already back and read 0 s. `chaos.sh` now
 times every fault from the moment it is applied (`fault_to_ready_s`); the drain figure comes with
 the next run. For the other faults, the table adds the script's fixed 3 s pause to the old timer.
+
+## D19. CI on kind, and the quality gate (step 8)
+
+**CI** (`kind` job in `.github/workflows/ci.yml`): a 3-node kind cluster on an arm64 runner (the
+laptop's architecture), the image built with its tests, the chart with `values-ci.yaml`, then
+`tests/smoke-test.sh`, the NetworkPolicy test and an 80 s load test at 4 VUs that allows no failed
+request. Monitoring and autoscaling are left out to keep the job short and steady; the bench
+workflow covers them. The load test is a check that the Service works under concurrency, not a
+latency benchmark, so it gates on failures only: a shared runner's latency would make it flaky.
+
+**Quality gate** (`scripts/quality-gate.sh`): goldpass, pinned to commit b10c0a9, asks the 20
+golden questions through the in-cluster api with the real generator. The golden set (16 to answer,
+4 to refuse) and the thresholds are copied from goldpass's rail example: grounding >= 0.90,
+answered rate >= 0.80, refusal rate >= 0.75, no errors, the same bar as the live demo's gate. It
+shows the deployment meets that bar, not that its answers are identical to the demo's. `/ask`
+does not return retrieved passages, so retrieval metrics are not scored. It is run by hand and
+never in CI: it needs a key, which only its owner puts in the cluster (D10).
