@@ -23,6 +23,7 @@ class WrapperSettings:
     # how long /ask waits before answering 503 when Qdrant is down. Searches take milliseconds.
     qdrant_timeout_seconds: int = 2
     index_poll_seconds: float = 2.0  # how often startup re-checks Qdrant while the index loads
+    embed_threads: int = 0  # 0 = ONNX Runtime's default (one per visible core)
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> WrapperSettings:
@@ -40,5 +41,6 @@ class WrapperSettings:
             log_level=e.get("LOG_LEVEL", d.log_level).upper(),
             log_format=e.get("LOG_FORMAT", d.log_format).lower(),
             qdrant_timeout_seconds=int(e.get("QDRANT_TIMEOUT_SECONDS", d.qdrant_timeout_seconds)),
+            embed_threads=int(e.get("EMBED_THREADS", d.embed_threads)),
             index_poll_seconds=float(e.get("INDEX_POLL_SECONDS", d.index_poll_seconds)),
         )

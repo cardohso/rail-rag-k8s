@@ -1,0 +1,79 @@
+name: bench
+
+# The load and autoscaling benchmarks behind the README numbers, on a clean GitHub runner instead
+# of a laptop shared with other work (docs/DESIGN.md D17). Takes about 2 hours for all scenarios
+# at 3 runs each. Uses the fake generator only, so it needs no secrets.
+# Start it by hand (Actions -> bench -> Run workflow, once this file is on main), or by pushing a
+# branch named bench/<anything>, which runs every scenario with the defaults below.
+on:
+  push:
+    branches: ['bench/**']
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Which benchmark to run
+        type: choice
+        options: [all, capacity, hpa, keda]
+        default: all
+      runs:
+        description: Runs per scenario
+        type: string
+        default: "3"
+      runner:
+        description: Runner (arm64 matches the laptop's architecture)
+        type: choice
+        options: [ubuntu-24.04-arm, ubuntu-24.04]
+        default: ubuntu-24.04-arm
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+jobs:
+  bench:
+    runs-on: ${{ inputs.runner || 'ubuntu-24.04-arm' }}
+    timeout-minutes: 240
+    env:
+      SCENARIO: ${{ inputs.scenario || 'all' }}
+      RUNS: ${{ inputs.runs || '3' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+        with: {version: v4.3.2}
+      - uses: azure/setup-kubectl@v4
+        with: {version: v1.36.1}
+      - name: Install kind 0.33.0
+        run: |
+          arch="$(dpkg --print-architecture)"
+          curl -sSfLo kind "https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-${arch}"
+          sudo install -m 0755 kind /usr/local/bin/kind
+          kind version
+      - name: Record the machine
+        run: |
+          mkdir -p results/raw
+          scripts/machine-info.sh | tee results/raw/machine.json
+      - name: Create the cluster
+        run: scripts/up.sh
+      - name: Build the api image (runs the wrapper tests) and load it
+        run: scripts/build-image.sh
+      - name: Prometheus and Alertmanager (no Grafana, to save CPU)
+        run: scripts/install-monitoring.sh --set grafana.enabled=false
+      - name: metrics-server and KEDA
+        run: scripts/install-autoscaling.sh
+      - name: Run the benchmarks
+        run: scripts/bench.sh "$SCENARIO" "$RUNS"
+      - name: Cluster state, for debugging a failed run
+        if: always()
+        run: |
+          kubectl --context kind-rail-k8s get pods -A -o wide > results/raw/pods.txt 2>&1 || true
+          kubectl --context kind-rail-k8s get events -A --sort-by=.lastTimestamp > results/raw/events.txt 2>&1 || true
+          kubectl --context kind-rail-k8s top pods -A > results/raw/top.txt 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-${{ inputs.scenario || 'all' }}-${{ github.run_id }}
+          path: results/raw/
+          retention-days: 90

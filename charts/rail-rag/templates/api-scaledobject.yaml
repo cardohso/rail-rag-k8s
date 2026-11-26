@@ -1,0 +1,32 @@
+{{- $a := .Values.api.autoscaling }}
+{{- if and $a.enabled (eq $a.mode "keda") }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "rail-rag.fullname" . }}-api
+  labels:
+    {{- include "rail-rag.labels" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "rail-rag.fullname" . }}-api
+  minReplicaCount: {{ $a.minReplicas }}
+  maxReplicaCount: {{ $a.maxReplicas }}
+  pollingInterval: 15
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- include "rail-rag.hpaBehavior" . | nindent 8 }}
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: {{ $a.cpuUtilization | quote }}
+    # The total in flight across pods. With metricType AverageValue the HPA divides it by the
+    # current replica count, so the target is per pod.
+    - type: prometheus
+      metricType: AverageValue
+      metadata:
+        serverAddress: {{ $a.prometheusUrl }}
+        query: sum(rail_http_requests_in_flight{namespace="{{ .Release.Namespace }}", service="{{ include "rail-rag.fullname" . }}-api"})
+        threshold: {{ $a.inFlightPerPod | quote }}
+{{- end }}

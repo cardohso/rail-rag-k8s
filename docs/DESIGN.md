@@ -227,3 +227,71 @@ answered 503 in 9 s: a connect to a Service with no ready pods does not get refu
 (10.7 s measured from inside a pod), so the client timeout is what bounds the wait. It was 5 s;
 it is now `qdrant.clientTimeoutSeconds: 2`. A second run of the test would give a second number;
 this is one run of each version.
+
+## D17. Autoscaling: fixed-size pods, and benchmarks off the laptop
+
+**Prerequisites (step 6):** kind has no resource-metrics API, so even a CPU HPA cannot work until
+metrics-server is installed (`scripts/install-autoscaling.sh`, metrics-server 3.14.0 with
+`--kubelet-insecure-tls` because kind's kubelets use self-signed certificates, and KEDA 2.21.1).
+The chart's `api.autoscaling.mode` is `hpa` (CPU only) or `keda` (CPU and in-flight per pod);
+scale-up is immediate, scale-down waits 120 s and removes one pod per minute.
+
+**Load comes from inside the cluster** (`scripts/k6-run.sh`, k6 2.4.0 as a pod). A
+`kubectl port-forward` sends every request to one pod, so it cannot test load balancing or
+scaling. k6 opens a new connection per request: with keep-alive, kube-proxy balances
+connections, not requests, so each virtual user would stay on the pod it first reached and pods
+added mid-run would get no traffic.
+
+**A pod needs a fixed size for scaling to mean anything.** The first clean capacity run (one pod,
+no CPU limit) scaled linearly to 8.1 requests/s at 16 concurrent users, p95 flat at 2.9 s, using
+2.4 cores, and never saturated: the embedding runtime starts one thread per core the container can
+see (all 8 of the VM's), so a single pod could take the whole machine and adding pods would add
+nothing. Each api pod now has CPU request = limit, and the runtime is capped to one thread
+(`api.embedThreads`, through `rail_k8s.embed.ThreadedEmbedder`; a contract test checks it returns
+the same vectors as upstream's embedder, within 1e-5). This replaces the "no CPU limit" choice
+made in step 4: a limit without the thread cap would throttle eight threads inside one CPU.
+
+**Benchmarks run on GitHub Actions, not on the laptop** (`.github/workflows/bench.yml`). Three
+capacity runs on the laptop are discarded, and the reason is the point:
+
+| run | what happened | why it is not used |
+|---|---|---|
+| 1 | p95 30 s at 2 users, 3.8% failed | host CPU taken by other work (load average 48); the VM's CPU-pressure signal was 0.4-0.98 |
+| 2 | clean: 0 failures, CPU pressure 0.06-0.22 | used above, as the reason for fixed-size pods |
+| 3 | took 2,441 s instead of 400; one request "lasted" 1,229 s | the Mac ran out of memory (12.7 of 13.3 GB swap in use) and paused the whole VM |
+
+A 16 GB laptop that also runs a browser, an editor and other jobs cannot give the Docker VM a
+stable 8 GB. The GitHub runner (4 vCPUs, 16 GB, arm64 like the laptop) runs nothing else, and
+anyone can rerun the workflow. On 4 vCPUs the pods are smaller (500m, `values-bench.yaml`) and
+at most 4, which leaves 2 cores for the control plane, Prometheus, Qdrant and k6. Shared runners
+have their own noise, so each scenario runs 3 times and the spread is reported. Every run also
+records the host's load average (`results/raw/<run>.host.json`).
+
+**Measured on the runner** (workflow run 45672935010, 3 runs per scenario; data in
+`results/bench/45672935010/`, tables in `results/bench-45672935010.md` from
+`scripts/bench_report.py`). The laptop's 0.28 CPU-s per request was contention: on the runner a
+request costs 0.033 CPU-s at every load level.
+
+- *One pod saturates near 14.5 requests/s.* Throughput grows linearly to 32 users (14.1-14.5
+  req/s, p95 2.9 s), then stays flat at 48 (14.2-14.7 req/s) while p95 rises to 4.9 s. At that
+  point the pod is at its CPU limit (0.47 of 0.5) and at the 32 generator calls it can run at once
+  (`DeadlineLLM`'s pool); this test cannot say which binds first, since both arrive together.
+- *A 40-user burst:* the CPU HPA scales to 2 pods, 36-56 s after the burst starts, and stops
+  there, because two pods sit at 68% of their request, just under the 70% target. KEDA scales on
+  in-flight requests first (22-42 s to 2 pods) and on to 4. Neither failed a request. Over the
+  whole run p95 is 2.47-2.70 s with the HPA and 2.23-2.26 s with KEDA; with KEDA it equals the
+  unloaded p95 (2.22 s), with the HPA the extra is the minute one pod carries the burst alone.
+  After the burst, the HPA is back to 1 pod in about 2 minutes and KEDA in about 4 (the 120 s
+  window, then one pod a minute).
+- *Targets:* 10 in flight per pod, about a third of where one pod saturates, and CPU 70% as the
+  second trigger. CPU alone works but reacts later and less, because a pod waiting on the
+  generator uses little CPU per request in flight.
+- *Two caveats.* Prometheus's p95 (2.8 s unloaded) is higher than k6's (2.2 s) because it
+  interpolates inside the 2.5-5 s histogram bucket; the tables say which one they use. One request
+  of 4,145 failed in capacity run 3 with no 5xx recorded by the api, so it never got an HTTP
+  answer; k6 now logs each failure (`ASK_FAIL` lines in `<run>.k6.log`) so the next one has a
+  cause.
+
+**Helm 4 and `kubectl scale` conflict:** Helm 4 applies manifests server-side, so after a
+`kubectl scale` it refuses to upgrade the replica count it no longer owns. Scripts set replicas
+through Helm values only.

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Install kube-prometheus-stack (Prometheus, Alertmanager, Grafana) into the "monitoring" namespace.
-# Usage: scripts/install-monitoring.sh        Idempotent: running it twice upgrades in place.
+# Usage: scripts/install-monitoring.sh [extra helm args]   Idempotent: running it twice upgrades.
+#   e.g. scripts/install-monitoring.sh --set grafana.enabled=false   (the benchmark workflow)
 set -euo pipefail
 # shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -15,5 +16,5 @@ helm upgrade --install kps prometheus-community/kube-prometheus-stack \
   --kube-context "$KUBE_CONTEXT" --namespace monitoring --create-namespace \
   --version "$CHART_VERSION" \
   -f "$REPO_ROOT/observability/kube-prometheus-stack-values.yaml" \
-  --wait --timeout 10m
+  --wait --timeout 10m "$@"
 log "monitoring is up. Grafana: kubectl -n monitoring port-forward svc/kps-grafana 3000:80"

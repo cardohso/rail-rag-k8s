@@ -12,7 +12,7 @@ K8S_VERSION="${K8S_VERSION:-1.36.0}"
 CRD_SCHEMAS='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
 failed=0
 
-for overlay in "" values-dev.yaml values-ci.yaml; do
+for overlay in "" values-dev.yaml values-ci.yaml values-bench.yaml; do
   label="${overlay:-values.yaml}"
   args=()
   [ -n "$overlay" ] && args=(-f "${CHART}/${overlay}")

@@ -15,6 +15,7 @@ from rail_rag.providers import make_llm
 from rail_rag.tracing import make_tracer
 
 from rail_k8s.config import WrapperSettings
+from rail_k8s.embed import ThreadedEmbedder
 from rail_k8s.llm import DeadlineLLM, FakeLLM, InstrumentedLLM
 from rail_k8s.store import RemoteQdrantStore, TimedEmbedder, TimedStore
 
@@ -30,7 +31,12 @@ def build_pipeline(w: WrapperSettings | None = None, store=None, embedder=None) 
     w = w or WrapperSettings.from_env()
     s = get_settings()
     cfg = GraphConfig(k=s.top_k, min_score=s.min_score, hybrid=s.search_mode == "hybrid")
-    embedder = embedder or LocalEmbedder(s.embedding_model)
+    if embedder is None:
+        embedder = (
+            ThreadedEmbedder(s.embedding_model, w.embed_threads)
+            if w.embed_threads > 0
+            else LocalEmbedder(s.embedding_model)
+        )
     store = TimedStore(store or RemoteQdrantStore(w.qdrant_url, timeout=w.qdrant_timeout_seconds))
     if s.corpus_pin:
         store = PinnedStore(store, load_pins())
