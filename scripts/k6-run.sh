@@ -4,6 +4,7 @@
 # Usage: scripts/k6-run.sh <run-name> '<stages JSON>' [think_ms]
 #   e.g. scripts/k6-run.sh hpa-1 '[{"duration":"1m","target":4},{"duration":"3m","target":16}]'
 # Writes results/raw/<run-name>.k6.json and results/raw/<run-name>.prom.json.
+# K6_NODE=<node> pins the k6 pod to a node, so a failure test never drains or kills its own client.
 set -euo pipefail
 # shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -11,6 +12,8 @@ need kubectl python3 curl
 NAME="${1:?run name}"
 STAGES="${2:?stages JSON}"
 THINK_MS="${3:-0}"
+NODE_SELECTOR="{}"
+[ -n "${K6_NODE:-}" ] && NODE_SELECTOR="{kubernetes.io/hostname: ${K6_NODE}}"
 NS="rail"
 POD="k6-${NAME}"
 OUT="$REPO_ROOT/results/raw"
@@ -34,6 +37,7 @@ metadata:
   labels: {app: k6}
 spec:
   restartPolicy: Never
+  nodeSelector: ${NODE_SELECTOR}
   automountServiceAccountToken: false
   securityContext: {runAsNonRoot: true, runAsUser: 12345, seccompProfile: {type: RuntimeDefault}}
   containers:

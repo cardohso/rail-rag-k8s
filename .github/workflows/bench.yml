@@ -4,16 +4,17 @@ name: bench
 # of a laptop shared with other work (docs/DESIGN.md D17). Takes about 2 hours for all scenarios
 # at 3 runs each. Uses the fake generator only, so it needs no secrets.
 # Start it by hand (Actions -> bench -> Run workflow, once this file is on main), or by pushing a
-# branch named bench/<anything>, which runs every scenario with the defaults below.
+# branch named bench/<anything>, which runs every scenario with the defaults below. A branch named
+# chaos/<anything> runs the failure tests instead (scripts/chaos.sh, about 1.5 hours at 3 runs).
 on:
   push:
-    branches: ['bench/**']
+    branches: ['bench/**', 'chaos/**']
   workflow_dispatch:
     inputs:
       scenario:
         description: Which benchmark to run
         type: choice
-        options: [all, capacity, hpa, keda]
+        options: [all, capacity, hpa, keda, chaos]
         default: all
       runs:
         description: Runs per scenario
@@ -37,7 +38,7 @@ jobs:
     runs-on: ${{ inputs.runner || 'ubuntu-24.04-arm' }}
     timeout-minutes: 240
     env:
-      SCENARIO: ${{ inputs.scenario || 'all' }}
+      SCENARIO: ${{ inputs.scenario || (startsWith(github.ref_name, 'chaos/') && 'chaos') || 'all' }}
       RUNS: ${{ inputs.runs || '3' }}
     steps:
       - uses: actions/checkout@v7
@@ -64,7 +65,13 @@ jobs:
       - name: metrics-server and KEDA
         run: scripts/install-autoscaling.sh
       - name: Run the benchmarks
-        run: scripts/bench.sh "$SCENARIO" "$RUNS"
+        run: |
+          if [ "$SCENARIO" = chaos ]; then
+            scripts/chaos.sh all "$RUNS"
+            python3 scripts/chaos_report.py results/raw | tee results/raw/chaos-report.md
+          else
+            scripts/bench.sh "$SCENARIO" "$RUNS"
+          fi
       - name: Cluster state, for debugging a failed run
         if: always()
         run: |
@@ -74,6 +81,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bench-${{ inputs.scenario || 'all' }}-${{ github.run_id }}
+          name: bench-${{ env.SCENARIO }}-${{ github.run_id }}
           path: results/raw/
           retention-days: 90
