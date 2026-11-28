@@ -23,6 +23,10 @@ QUERIES = {
     "k6_cpu_cores": f'sum(rate(container_cpu_usage_seconds_total{{{NS},container="k6"}}[1m]))',
     "grafana_cpu_cores": 'sum(rate(container_cpu_usage_seconds_total{namespace="monitoring",container="grafana"}[1m]))',
     "node_cpu_busy_cores": 'sum(rate(node_cpu_seconds_total{mode!="idle"}[1m]))',
+    # 1 while the alert fires, absent otherwise: the evidence that the rules work under load.
+    **{f"alert_{a}": f'max(ALERTS{{alertname="{a}",alertstate="firing"}})'
+       for a in ("RailApiAtMaxReplicas", "RailApiHighLatency", "RailApiHighErrorRate",
+                 "RailQdrantDown", "RailQdrantErrors", "RailApiDown")},
 }
 
 

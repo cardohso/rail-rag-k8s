@@ -653,6 +653,39 @@
         "overrides": []
       },
       "options": {}
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Answers and refusals by reason (per minute)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (outcome) (rate(rail_ask_outcomes_total{namespace=\"rail\"}[1m])) * 60",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {}
     }
   ],
   "templating": {

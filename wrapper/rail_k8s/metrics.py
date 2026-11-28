@@ -34,6 +34,9 @@ RETRIEVAL_DURATION = Histogram(
     "Qdrant search time as seen by the api.",
     buckets=(0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0),
 )
+# One per answered /ask: "answered", or upstream's refusal reason (four fixed values, so the label
+# stays small: low_retrieval_score, no_relevant_passages, insufficient_context, no_citations).
+ASK_OUTCOMES = Counter("rail_ask_outcomes_total", "Answered or refused /ask requests, by reason.", ["outcome"])
 BACKEND_ERRORS = Counter("rail_backend_errors_total", "Failed calls to a backend.", ["backend"])
 
 READY = Gauge("rail_ready", "1 when this pod finished startup and can serve.")

@@ -6,6 +6,7 @@ name: bench
 # Start it by hand (Actions -> bench -> Run workflow, once this file is on main), or by pushing a
 # branch named bench/<anything>, which runs every scenario with the defaults below. A branch named
 # chaos/<anything> runs the failure tests instead (scripts/chaos.sh, about 1.5 hours at 3 runs).
+# The branch name can choose: bench/keda runs one benchmark, chaos/qdrant+drain those failure tests.
 on:
   push:
     branches: ['bench/**', 'chaos/**']
@@ -66,10 +67,14 @@ jobs:
         run: scripts/install-autoscaling.sh
       - name: Run the benchmarks
         run: |
+          pick="${GITHUB_REF_NAME#*/}"
           if [ "$SCENARIO" = chaos ]; then
-            scripts/chaos.sh all "$RUNS"
+            names='kill|crash|rollout|drain|qdrant'
+            [[ "$pick" =~ ^($names)(\+($names))*$ ]] || pick=all
+            scripts/chaos.sh "$pick" "$RUNS"
             python3 scripts/chaos_report.py results/raw | tee results/raw/chaos-report.md
           else
+            [ "$SCENARIO" = all ] && [[ "$pick" =~ ^(capacity|hpa|keda)$ ]] && SCENARIO="$pick"
             scripts/bench.sh "$SCENARIO" "$RUNS"
           fi
       - name: Cluster state, for debugging a failed run

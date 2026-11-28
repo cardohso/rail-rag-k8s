@@ -12,3 +12,8 @@ api:
     cpuUtilization: 70
     # A third of the 32 generator calls one pod can run at once: the 40-VU burst wants 4 pods.
     inFlightPerPod: 10
+observability:
+  alerts:
+    # KEDA holds 4 pods for about 3 of the burst's 4 minutes, so a shorter wait lets the
+    # benchmark show RailApiAtMaxReplicas firing; production keeps the 5m default.
+    atMaxFor: 1m

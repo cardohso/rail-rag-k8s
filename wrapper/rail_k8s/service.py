@@ -14,7 +14,7 @@ from collections.abc import Callable
 
 from fastapi import HTTPException
 
-from rail_k8s.metrics import READY, STARTUP_SECONDS
+from rail_k8s.metrics import ASK_OUTCOMES, READY, STARTUP_SECONDS
 from rail_k8s.store import BackendUnavailable
 
 log = logging.getLogger("rail_k8s.service")
@@ -92,9 +92,11 @@ class Service:
         if not self.ready:
             raise HTTPException(503, "The service is starting; try again shortly.")
         try:
-            return self.pipeline.ask(question)
+            result = self.pipeline.ask(question)
         except BackendUnavailable as exc:
             raise HTTPException(503, "The document store is unavailable; try again shortly.") from exc
+        ASK_OUTCOMES.labels(result.refusal_reason or "other" if result.refused else "answered").inc()
+        return result
 
     def health(self) -> dict:
         return {"phase": self.phase, **(self.pipeline.health() if self.ready else {})}

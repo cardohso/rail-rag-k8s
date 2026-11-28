@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 # Failure tests under steady load: does the api keep answering while pods go away?
-# Usage: scripts/chaos.sh <kill|crash|rollout|drain|all> [runs]      default runs: 3
+# Usage: scripts/chaos.sh <kill|crash|rollout|drain|qdrant|all> [runs]      default runs: 3
+#   Several scenarios joined by +, such as qdrant+drain, run in that order.
 #   kill     delete one api pod (graceful: preStop, SIGTERM, in-flight requests drain)
 #   crash    SIGKILL one api container through the node's container runtime (no warning)
 #   rollout  rolling restart of the api Deployment (maxSurge 1, maxUnavailable 0)
 #   drain    drain the worker without Qdrant, as for node maintenance (honours the PDB)
+#   qdrant   delete the Qdrant pod: one replica, so /ask answers 503 until it is back (DESIGN D5)
 # Each run: 3 api pods, 16 VUs for 5 minutes, the fault 90 s after k6 starts.
 # Results: results/raw/chaos-<scenario>-r<n>.{k6,prom,chaos}.json, summaries in results/raw/chaos.log.
 set -euo pipefail
 # shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 need helm kubectl docker jq
-SCENARIO="${1:?scenario: kill, crash, rollout, drain or all}"
+SCENARIO="${1:?scenario: kill, crash, rollout, drain, qdrant or all}"
 RUNS="${2:-3}"
-[[ "$SCENARIO" =~ ^(kill|crash|rollout|drain|all)$ ]] || die "unknown scenario: $SCENARIO"
+[[ "$SCENARIO" =~ ^(all|(kill|crash|rollout|drain|qdrant)(\+(kill|crash|rollout|drain|qdrant))*)$ ]] || die "unknown scenario: $SCENARIO"
 [[ "$RUNS" =~ ^[1-9][0-9]?$ ]] || die "runs must be 1-99"
 CHART="$REPO_ROOT/charts/rail-rag"
 OUT="$REPO_ROOT/results/raw"
@@ -43,7 +45,8 @@ settled() { # all replicas ready and up to date, and no api pod terminating
     [ "$(jq -r '.status.updatedReplicas // 0' <<<"$d")" = "$REPLICAS" ] &&
     [ "$(jq -r '.status.replicas // 0' <<<"$d")" = "$REPLICAS" ] &&
     [ "$(kc -n rail get pods -l app.kubernetes.io/component=api -o json |
-      jq '[.items[] | select(.metadata.deletionTimestamp != null)] | length')" = 0 ]
+      jq '[.items[] | select(.metadata.deletionTimestamp != null)] | length')" = 0 ] &&
+    [ "$(kc -n rail get statefulset rail-rag-qdrant -o jsonpath='{.status.readyReplicas}')" = 1 ]
 }
 
 wait_settled() { # wait_settled <deadline s>; prints seconds taken
@@ -84,13 +87,17 @@ inject() { # inject <scenario> <run name>: apply the fault, wait for recovery, w
       node="$DRAIN_NODE"
       at="$(date -u +%FT%TZ)"; t0=$SECONDS
       kc drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=300s >/dev/null ;;
+    qdrant)
+      target=rail-rag-qdrant-0 node="$QDRANT_NODE"
+      at="$(date -u +%FT%TZ)"; t0=$SECONDS
+      kc -n rail delete pod "$target" --wait=false >/dev/null ;;
   esac
   sleep 3 # let the controllers see the change before checking for recovery
   recovered="$(wait_settled 400)"
   # From the fault itself: kubectl drain blocks until its evictions finish, so the wait above
   # alone reads 0 s for a drain.
   local fault_to_ready=$((SECONDS - t0))
-  log "${s}: fault at ${at} on ${target:-deployment} ${node}, ${REPLICAS} pods ready ${fault_to_ready} s after it"
+  log "${s}: fault at ${at} on ${target:-deployment} ${node}, ${REPLICAS} api pods and Qdrant ready ${fault_to_ready} s after it"
   jq -n --arg s "$s" --arg at "$at" --arg target "$target" --arg node "$node" \
     --argjson recovered "$recovered" --argjson ftr "$fault_to_ready" \
     '{scenario: $s, fault_at: $at, target_pod: $target, node: $node, recovered_s: $recovered,
@@ -124,8 +131,9 @@ run_one() { # run_one <scenario> <run>
   restore "$s"
 }
 
-for s in kill crash rollout drain; do
-  [[ "$SCENARIO" =~ ^($s|all)$ ]] || continue
+[ "$SCENARIO" = all ] && SCENARIO=kill+crash+rollout+drain+qdrant
+IFS=+ read -ra SCENARIOS <<<"$SCENARIO"
+for s in "${SCENARIOS[@]}"; do
   for ((r = 1; r <= RUNS; r++)); do run_one "$s" "$r"; done
 done
 log "chaos done: $(grep -c '^run:' "$LOG") run summaries in ${LOG}"

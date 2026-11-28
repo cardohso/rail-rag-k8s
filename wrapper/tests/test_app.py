@@ -82,6 +82,18 @@ def test_ask_returns_a_cited_answer_with_request_id(ready_client, passages):
     assert sample("rail_generator_calls_total", outcome="ok") >= 3  # rewrite, grade, generate
 
 
+def test_refusals_are_counted_by_reason(ready_client, passages):
+    p = passages[0]
+    answered = sample("rail_ask_outcomes_total", outcome="answered")
+    assert ready_client.post("/ask", json={"question": f"{p.heading}. {p.text[:200]}"}).json()["refused"] is False
+    assert sample("rail_ask_outcomes_total", outcome="answered") == answered + 1
+    before = {s.labels["outcome"]: s.value for m in REGISTRY.collect() if m.name == "rail_ask_outcomes"
+              for s in m.samples if s.name.endswith("_total")}
+    body = ready_client.post("/ask", json={"question": "zebra quantum pancake recipe xylophone"}).json()
+    assert body["refused"] is True
+    assert sample("rail_ask_outcomes_total", outcome=body["refusal_reason"]) == before.get(body["refusal_reason"], 0) + 1
+
+
 def test_request_id_is_generated_and_sanitised(ready_client):
     assert len(ready_client.get("/health").headers["x-request-id"]) == 32
     r = ready_client.get("/health", headers={"X-Request-ID": "a b<script>"})

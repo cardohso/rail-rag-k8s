@@ -44,6 +44,17 @@ spec:
           annotations:
             summary: "/ask p95 latency is above {{ .Values.observability.alerts.p95Seconds }} s"
             description: Pods are saturated or the generator is slow. Compare in-flight per pod on the dashboard.
+        - alert: RailApiAtMaxReplicas
+          # The HPA, or the one KEDA creates (keda-hpa-<name>), cannot add pods: more load means
+          # more latency, not more pods.
+          expr: |
+            max by (horizontalpodautoscaler) (kube_horizontalpodautoscaler_status_current_replicas{namespace="{{ .Release.Namespace }}", horizontalpodautoscaler=~".*{{ $full }}-api"})
+              >= max by (horizontalpodautoscaler) (kube_horizontalpodautoscaler_spec_max_replicas{namespace="{{ .Release.Namespace }}", horizontalpodautoscaler=~".*{{ $full }}-api"})
+          for: {{ .Values.observability.alerts.atMaxFor }}
+          labels: {severity: warning}
+          annotations:
+            summary: "The api autoscaler is at its maximum of {{ "{{ $value }}" }} pods"
+            description: Raise api.autoscaling.maxReplicas or the per-pod capacity, and check RailApiHighLatency. See docs/RUNBOOK.md.
         - alert: RailPodRestarting
           expr: increase(kube_pod_container_status_restarts_total{namespace="{{ .Release.Namespace }}"}[15m]) > 2
           labels: {severity: warning}

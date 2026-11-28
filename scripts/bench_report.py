@@ -54,6 +54,14 @@ def first_change(prom: dict, to_at_least: int) -> float:
     return float("nan")
 
 
+def fired(runs: list[tuple[dict, dict]], alert: str) -> str:
+    """In how many runs the alert fired at some point (prom_range.py's alert_* series)."""
+    key = f"alert_{alert}"
+    if not all(key in p["series"] for _, p in runs):
+        return "not recorded"
+    return f"{sum(1 for _, p in runs if p['series'][key])} of {len(runs)}"
+
+
 def capacity(d: str) -> None:
     runs = load(d, "capacity")
     if not runs:
@@ -80,8 +88,8 @@ def scaling(d: str) -> None:
     print("## Autoscaling: a 40-VU burst between two 2-VU periods\n")
     print("k6 latency is over the whole run; pods and req/s are from the end of the burst.\n")
     print("| scenario | runs | failed | p95 | p99 | max | pods in burst | req/s in burst "
-          "| s to 2 pods | in flight per pod |")
-    print("|---|---|---|---|---|---|---|---|---|---|")
+          "| s to 2 pods | in flight per pod | RailApiAtMaxReplicas fired |")
+    print("|---|---|---|---|---|---|---|---|---|---|---|")
     for scenario in ("hpa", "keda"):
         runs = load(d, scenario)
         if not runs:
@@ -100,7 +108,8 @@ def scaling(d: str) -> None:
               f"| {rng([b['replicas_ready'] for b in burst], '{:.0f}')} "
               f"| {rng([b['rps'] for b in burst], '{:.1f}')} "
               f"| {rng(to2, '{:.0f}')} "
-              f"| {rng([b['in_flight_per_pod_avg'] for b in burst], '{:.1f}')} |")
+              f"| {rng([b['in_flight_per_pod_avg'] for b in burst], '{:.1f}')} "
+              f"| {fired(runs, 'RailApiAtMaxReplicas')} |")
     print()
 
 

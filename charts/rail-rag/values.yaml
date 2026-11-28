@@ -125,5 +125,6 @@ observability:
     enabled: false
     p95Seconds: 4        # /ask p95 above this for 5 minutes. The fake generator tops out near 2.7 s.
     errorRatio: 0.05     # share of /ask answered with 5xx over 5 minutes
+    atMaxFor: 5m         # autoscaler pinned at maxReplicas this long before it fires
   dashboard:
     enabled: false
